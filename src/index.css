@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+@theme {
+  --font-sans: 'Effra', ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #f2f5fa;
+  --color-brand-100: #d9e1ed;
+  --color-brand-500: #265696;
+  --color-brand-600: #003883;
+  --color-brand-700: #00306f;
+  --color-brand-900: #00224f;
+  --color-accent-500: #f57e20;
+
+  --color-grey-500: #667085;
+}
+
+body {
+  font-family: var(--font-sans);
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+::selection {
+  background: #d9e1ed;
+  color: #00224f;
+}
