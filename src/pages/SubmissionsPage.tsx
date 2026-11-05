@@ -9,7 +9,7 @@ import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 
 const PAGE_SIZE = 8
-const statuses: RecordStatus[] = ['Submitted', 'In review', 'Approved', 'Returned']
+const statuses: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
 
 export default function SubmissionsPage() {
   const { records, updateStatus } = useSustainability()
@@ -30,7 +30,7 @@ export default function SubmissionsPage() {
   const pageCount = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE))
   const pageRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const submittedCount = records.filter((record) => record.status === 'Submitted').length
-  const inReviewCount = records.filter((record) => record.status === 'In review').length
+  const rejectedCount = records.filter((record) => record.status === 'Rejected').length
   const approvedCount = records.filter((record) => record.status === 'Approved').length
 
   function changeStatus(record: SustainabilityRecord, next: RecordStatus) {
@@ -52,9 +52,9 @@ export default function SubmissionsPage() {
       </div>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Submitted</p><p className="mt-1 text-2xl font-bold text-brand-700">{submittedCount}</p><p className="mt-1 text-[10px] text-slate-400">Awaiting initial review</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">In review</p><p className="mt-1 text-2xl font-bold text-amber-600">{inReviewCount}</p><p className="mt-1 text-[10px] text-slate-400">Currently being reviewed</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Submitted</p><p className="mt-1 text-2xl font-bold text-amber-600">{submittedCount}</p><p className="mt-1 text-[10px] text-slate-400">Awaiting initial review</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Approved</p><p className="mt-1 text-2xl font-bold text-emerald-700">{approvedCount}</p><p className="mt-1 text-[10px] text-slate-400">Illustrative approved records</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Rejected</p><p className="mt-1 text-2xl font-bold text-rose-600">{rejectedCount}</p><p className="mt-1 text-[10px] text-slate-400">Sent back for correction</p></div>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -84,9 +84,9 @@ export default function SubmissionsPage() {
                   <td className="whitespace-nowrap px-5 py-3.5 text-right">
                     <div className="inline-flex items-center gap-1.5">
                       <button type="button" onClick={() => setSelected(record)} aria-label={`View ${record.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600"><Eye className="h-4 w-4" /></button>
-                      {canAct && (record.status === 'Submitted' || record.status === 'In review') && <>
-                        <button type="button" onClick={() => changeStatus(record, 'Approved')} title="Approve" className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100"><Check className="h-3.5 w-3.5" /><span className="hidden sm:inline">Approve</span></button>
-                        <button type="button" onClick={() => changeStatus(record, 'Returned')} title="Return for correction" className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Return</span></button>
+                      {canAct && record.status === 'Submitted' && <>
+                        <button type="button" onClick={() => changeStatus(record, 'Approved')} title="Approve" className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-50 px-2.5 text-[10px] font-semibold text-brand-700 hover:bg-brand-100"><Check className="h-3.5 w-3.5" /><span className="hidden sm:inline">Approve</span></button>
+                        <button type="button" onClick={() => changeStatus(record, 'Rejected')} title="Reject" className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-700"><RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Reject</span></button>
                       </>}
                     </div>
                   </td>
@@ -107,7 +107,7 @@ export default function SubmissionsPage() {
           <dl className="mt-5 grid grid-cols-2 gap-3">
             {[['Reporting period', formatPeriod(selected.period)], ['Country', selected.country], ['Subsidiary', selected.subsidiary], ['Business unit', selected.businessUnit], ['Location', selected.location], ['Submitted by', selected.submittedBy], ...Object.entries(selected.values).filter(([, value]) => value).map(([key, value]) => [key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`), value])].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 px-3 py-2.5"><dt className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</dt><dd className="mt-1 break-words text-xs font-medium text-slate-700">{value}</dd></div>)}
           </dl>
-          {canAct && (selected.status === 'Submitted' || selected.status === 'In review') && <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => changeStatus(selected, 'Returned')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Return</button><button type="button" onClick={() => changeStatus(selected, 'Approved')} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"><Check className="h-3.5 w-3.5" /> Approve</button></div>}
+          {canAct && selected.status === 'Submitted' && <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => changeStatus(selected, 'Rejected')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-700"><RotateCcw className="h-3.5 w-3.5" /> Reject</button><button type="button" onClick={() => changeStatus(selected, 'Approved')} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-brand-700"><Check className="h-3.5 w-3.5" /> Approve</button></div>}
           <p className="mt-4 text-[10px] leading-4 text-slate-400">Demo review actions update this session only; audit history and server-side access controls are not connected.</p>
         </div>}
       </Modal>

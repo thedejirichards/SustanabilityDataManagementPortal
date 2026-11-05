@@ -9,7 +9,7 @@ import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 
 const PAGE_SIZE = 6
-const statusOptions: RecordStatus[] = ['Submitted', 'In review', 'Approved', 'Returned']
+const statusOptions: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
 
 function parseOption(option: string) {
   const separator = option.indexOf('|')
@@ -239,10 +239,10 @@ function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: Sus
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
         <p className="text-[10px] text-slate-400">Submitted {record.submittedAt} · Demonstration record</p>
-        {canAct && (record.status === 'Submitted' || record.status === 'In review') && (
+        {canAct && record.status === 'Submitted' && (
           <div className="flex shrink-0 gap-2">
-            <button type="button" onClick={() => onStatusChange('Returned')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Return</button>
-            <button type="button" onClick={() => onStatusChange('Approved')} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"><Check className="h-3.5 w-3.5" /> Approve</button>
+            <button type="button" onClick={() => onStatusChange('Rejected')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Reject</button>
+            <button type="button" onClick={() => onStatusChange('Approved')} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-brand-700"><Check className="h-3.5 w-3.5" /> Approve</button>
           </div>
         )}
       </div>
@@ -276,7 +276,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE))
   const pageRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const approvedCount = pillarRecords.filter((record) => record.status === 'Approved').length
-  const pendingCount = pillarRecords.filter((record) => record.status === 'In review' || record.status === 'Submitted').length
+  const pendingCount = pillarRecords.filter((record) => record.status === 'Submitted').length
   const operationScopeCounts = {
     scope1: pillarRecords.filter((record) => record.category === 'Diesel' || record.category === 'Petrol').length,
     scope2: pillarRecords.filter((record) => record.category === 'Electricity').length,
@@ -348,7 +348,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Total records</p><p className="mt-1 text-2xl font-bold text-slate-900">{pillarRecords.length}</p><p className="mt-1 text-[10px] text-slate-400">Illustrative records</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Approved</p><p className="mt-1 text-2xl font-bold text-emerald-700">{approvedCount}</p><p className="mt-1 text-[10px] text-slate-400">In the demonstration dataset</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Awaiting review</p><p className="mt-1 text-2xl font-bold text-amber-600">{pendingCount}</p><p className="mt-1 text-[10px] text-slate-400">Submitted or in review</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Awaiting review</p><p className="mt-1 text-2xl font-bold text-amber-600">{pendingCount}</p><p className="mt-1 text-[10px] text-slate-400">Submitted, awaiting decision</p></div>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">

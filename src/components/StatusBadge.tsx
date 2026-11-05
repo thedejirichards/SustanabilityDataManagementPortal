@@ -1,10 +1,9 @@
 import type { RecordStatus } from '../data/sustainability'
 
 const classes: Record<RecordStatus, string> = {
-  Submitted: 'bg-brand-50 text-brand-700 ring-brand-100',
-  'In review': 'bg-amber-50 text-amber-700 ring-amber-100',
+  Submitted: 'bg-amber-50 text-amber-700 ring-amber-100',
   Approved: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-  Returned: 'bg-rose-50 text-rose-700 ring-rose-100',
+  Rejected: 'bg-rose-50 text-rose-700 ring-rose-100',
 }
 
 export default function StatusBadge({ status }: { status: RecordStatus }) {

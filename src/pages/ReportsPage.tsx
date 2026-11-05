@@ -5,7 +5,7 @@ import Breadcrumb from '../components/Breadcrumb'
 import { formatPeriod, pillars, periods, type RecordStatus } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 
-const statuses: RecordStatus[] = ['Submitted', 'In review', 'Approved', 'Returned']
+const statuses: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
 
 export default function ReportsPage() {
   const { records } = useSustainability()
@@ -21,7 +21,7 @@ export default function ReportsPage() {
   }))
   const maxCount = Math.max(1, ...byPillar.map((item) => item.count))
   const approvedCount = filteredRecords.filter((record) => record.status === 'Approved').length
-  const pendingCount = filteredRecords.filter((record) => record.status === 'Submitted' || record.status === 'In review').length
+  const pendingCount = filteredRecords.filter((record) => record.status === 'Submitted').length
 
   function exportCsv() {
     const headers = ['Record ID', 'Pillar', 'Record name', 'Category', 'Reporting period', 'Country', 'Subsidiary', 'Business unit', 'Location', 'Status', 'Submitted by', 'Submitted date']
@@ -71,7 +71,7 @@ export default function ReportsPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Records in report</p><p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">{filteredRecords.length}</p><p className="mt-1 text-[10px] text-slate-400">Illustrative submissions</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Approved</p><p className="mt-1 text-3xl font-bold tracking-tight text-emerald-700">{approvedCount}</p><p className="mt-1 text-[10px] text-slate-400">In the selected view</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Awaiting review</p><p className="mt-1 text-3xl font-bold tracking-tight text-amber-600">{pendingCount}</p><p className="mt-1 text-[10px] text-slate-400">Submitted or in review</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Awaiting review</p><p className="mt-1 text-3xl font-bold tracking-tight text-amber-600">{pendingCount}</p><p className="mt-1 text-[10px] text-slate-400">Submitted, awaiting decision</p></div>
       </section>
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
@@ -93,7 +93,7 @@ export default function ReportsPage() {
           <div className="mt-5 space-y-2">
             {statuses.map((item) => {
               const count = filteredRecords.filter((record) => record.status === item).length
-              const colors: Record<RecordStatus, string> = { Submitted: 'bg-brand-500', 'In review': 'bg-amber-500', Approved: 'bg-emerald-500', Returned: 'bg-rose-500' }
+              const colors: Record<RecordStatus, string> = { Submitted: 'bg-amber-500', Approved: 'bg-emerald-500', Rejected: 'bg-rose-500' }
               return <div key={item} className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-3"><span className="flex items-center gap-2.5 text-xs font-medium text-slate-700"><span className={`h-2 w-2 rounded-full ${colors[item]}`} />{item}</span><span className="text-xs font-bold text-slate-800">{count}</span></div>
             })}
           </div>

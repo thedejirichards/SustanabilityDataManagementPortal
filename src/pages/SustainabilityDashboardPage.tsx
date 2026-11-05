@@ -140,7 +140,7 @@ export default function SustainabilityDashboardPage() {
     && (pillar === 'all' || record.pillar === pillar),
   ), [records, period, country, subsidiary, businessUnit, pillar])
   const approvedCount = filteredRecords.filter((record) => record.status === 'Approved').length
-  const reviewCount = filteredRecords.filter((record) => record.status === 'In review' || record.status === 'Submitted').length
+  const reviewCount = filteredRecords.filter((record) => record.status === 'Submitted').length
   const activePillars = pillars.filter((item) => filteredRecords.some((record) => record.pillar === item.key)).length
   const recentRecords = filteredRecords.slice().sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)).slice(0, 5)
   const operationsCount = filteredRecords.filter((record) => record.pillar === 'operations').length
@@ -187,7 +187,7 @@ export default function SustainabilityDashboardPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Sustainability indicators">
         <MetricCard label="Records in view" value={filteredRecords.length.toLocaleString()} note="Illustrative records matching the filters" icon={FilePlus2} tone="blue" suffix={<span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[9px] font-semibold text-slate-500"><ArrowUpRight className="h-3 w-3" /> Demo</span>} />
         <MetricCard label="Approved submissions" value={approvedCount.toLocaleString()} note="Approved in the demonstration dataset" icon={ClipboardCheck} tone="green" />
-        <MetricCard label="Awaiting review" value={reviewCount.toLocaleString()} note="Submitted or currently in review" icon={Clock3} tone="amber" suffix={<Link to="/submissions" className="text-[10px] font-semibold text-brand-600 hover:underline">Review queue</Link>} />
+        <MetricCard label="Awaiting review" value={reviewCount.toLocaleString()} note="Submitted, awaiting decision" icon={Clock3} tone="amber" suffix={<Link to="/submissions" className="text-[10px] font-semibold text-brand-600 hover:underline">Review queue</Link>} />
         <MetricCard label="Pillars with activity" value={`${activePillars} / ${pillars.length}`} note="Pillars with at least one matching record" icon={BarChart3} tone="orange" />
       </section>
 

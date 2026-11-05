@@ -25,7 +25,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { records } = useSustainability()
   const location = useLocation()
   const title = pillars.find((pillar) => pillar.path === location.pathname)?.title ?? pageTitles[location.pathname] ?? 'Sustainability portal'
-  const pendingCount = records.filter((record) => record.status === 'Submitted' || record.status === 'In review').length
+  const pendingCount = records.filter((record) => record.status === 'Submitted').length
 
   return (
     <header className="relative z-20 flex h-[68px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 lg:h-[76px] lg:px-8">
