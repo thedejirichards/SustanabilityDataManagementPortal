@@ -1,10 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { ArrowRight, CircleHelp, Eye, FilePlus2, Search, X } from 'lucide-react'
+import { ArrowRight, Check, CircleHelp, Eye, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import StatusBadge from '../components/StatusBadge'
-import { canSubmitRecords, formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
+import { canReview, canSubmitRecords, formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 
@@ -205,7 +205,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
   )
 }
 
-function RecordDetails({ record, pillar }: { record: SustainabilityRecord; pillar: PillarDefinition }) {
+function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: SustainabilityRecord; pillar: PillarDefinition; canAct: boolean; onStatusChange: (next: RecordStatus) => void }) {
   const common = [
     { label: 'Record ID', value: record.id },
     { label: 'Reporting period', value: formatPeriod(record.period) },
@@ -237,15 +237,24 @@ function RecordDetails({ record, pillar }: { record: SustainabilityRecord; pilla
         </dl>
         {record.values.evidence && <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 px-3 py-2.5 text-[10px] text-brand-800">Evidence reference: {record.values.evidence}. Demo files are not stored or access-controlled.</div>}
       </div>
-      <p className="mt-5 border-t border-slate-100 pt-3 text-[10px] text-slate-400">Submitted {record.submittedAt} · Demonstration record</p>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+        <p className="text-[10px] text-slate-400">Submitted {record.submittedAt} · Demonstration record</p>
+        {canAct && (record.status === 'Submitted' || record.status === 'In review') && (
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={() => onStatusChange('Returned')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Return</button>
+            <button type="button" onClick={() => onStatusChange('Approved')} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"><Check className="h-3.5 w-3.5" /> Approve</button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
-  const { records } = useSustainability()
+  const { records, updateStatus } = useSustainability()
   const { currentUser } = useCurrentUser()
   const canAddRecords = canSubmitRecords(currentUser.role)
+  const canReviewRecords = canReview(currentUser.role)
   const [search, setSearch] = useState('')
   const [period, setPeriod] = useState('all')
   const [status, setStatus] = useState('all')
@@ -282,6 +291,12 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
 
   function closeForm() {
     setFormOpen(false)
+  }
+
+  function reviewRecord(next: RecordStatus) {
+    if (!selectedRecord) return
+    updateStatus(selectedRecord.id, next)
+    setSelectedRecord((current) => current ? { ...current, status: next } : current)
   }
 
   return (
@@ -380,7 +395,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
       </section>
 
       {canAddRecords && <Modal open={formOpen} onClose={closeForm} label={pillar.formTitle}><RecordForm pillar={pillar} onClose={closeForm} /></Modal>}
-      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} />}</Modal>
+      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} canAct={canReviewRecords} onStatusChange={reviewRecord} />}</Modal>
     </div>
   )
 }
