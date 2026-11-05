@@ -4,7 +4,7 @@ import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import StatusBadge from '../components/StatusBadge'
-import { formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
+import { canSubmitRecords, formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 
@@ -244,6 +244,8 @@ function RecordDetails({ record, pillar }: { record: SustainabilityRecord; pilla
 
 export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
   const { records } = useSustainability()
+  const { currentUser } = useCurrentUser()
+  const canAddRecords = canSubmitRecords(currentUser.role)
   const [search, setSearch] = useState('')
   const [period, setPeriod] = useState('all')
   const [status, setStatus] = useState('all')
@@ -293,7 +295,11 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
             <p className="mt-1 max-w-2xl text-sm text-slate-500">{pillar.description}</p>
           </div>
         </div>
-        <button type="button" onClick={() => setFormOpen(true)} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700"><FilePlus2 className="h-4 w-4" /> Add record</button>
+        {canAddRecords ? (
+          <button type="button" onClick={() => setFormOpen(true)} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700"><FilePlus2 className="h-4 w-4" /> Add record</button>
+        ) : (
+          <span className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-500"><Eye className="h-4 w-4" /> Reviewer access · review only</span>
+        )}
       </section>
 
       {pillar.key === 'operations' && (
@@ -373,7 +379,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
         <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
       </section>
 
-      <Modal open={formOpen} onClose={closeForm} label={pillar.formTitle}><RecordForm pillar={pillar} onClose={closeForm} /></Modal>
+      {canAddRecords && <Modal open={formOpen} onClose={closeForm} label={pillar.formTitle}><RecordForm pillar={pillar} onClose={closeForm} /></Modal>}
       <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} />}</Modal>
     </div>
   )

@@ -233,6 +233,10 @@ export function canReview(role: AppRole) {
   return role === 'Sustainability Reviewer' || role === 'Portal Administrator'
 }
 
+export function canSubmitRecords(role: AppRole) {
+  return role === 'Data Contributor' || role === 'Portal Administrator'
+}
+
 export const demoRecords: SustainabilityRecord[] = [
   {
     id: 'SDM-OPS-1042', pillar: 'operations', name: 'Head Office · Diesel', category: 'Diesel', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Group Operations', location: 'Victoria Island, Lagos', status: 'In review', submittedBy: 'Amara Okafor', submittedAt: '2026-10-22',

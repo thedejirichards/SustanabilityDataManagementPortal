@@ -17,8 +17,9 @@ import {
 } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import StatusBadge from '../components/StatusBadge'
-import { businessUnits, countries, formatPeriod, pillarByKey, pillars, periods, subsidiaries, type SustainabilityRecord } from '../data/sustainability'
+import { businessUnits, canSubmitRecords, countries, formatPeriod, pillarByKey, pillars, periods, subsidiaries, type SustainabilityRecord } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
+import { useCurrentUser } from '../context/useCurrentUser'
 
 function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
   return (
@@ -123,6 +124,8 @@ function ActivityRow({ record }: { record: SustainabilityRecord }) {
 
 export default function SustainabilityDashboardPage() {
   const { records } = useSustainability()
+  const { currentUser } = useCurrentUser()
+  const canAddData = canSubmitRecords(currentUser.role)
   const [period, setPeriod] = useState('all')
   const [country, setCountry] = useState('all')
   const [subsidiary, setSubsidiary] = useState('all')
@@ -154,9 +157,11 @@ export default function SustainabilityDashboardPage() {
           </div>
           <p className="mt-1.5 max-w-2xl text-sm text-slate-500">A consolidated view of sustainability activity, submissions and data readiness across the Group.</p>
         </div>
-        <Link to="/operations" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700">
-          <FilePlus2 className="h-4 w-4" /> Add data
-        </Link>
+        {canAddData && (
+          <Link to="/operations" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700">
+            <FilePlus2 className="h-4 w-4" /> Add data
+          </Link>
+        )}
       </section>
 
       <div className="flex items-start gap-3 rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3.5">
