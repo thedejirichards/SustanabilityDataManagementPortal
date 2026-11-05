@@ -239,11 +239,11 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { category: 'Diesel', consumptionValue: '1,250', unit: 'L', sourceReference: 'DEMO-INV-1042' },
   },
   {
-    id: 'SDM-OPS-1038', pillar: 'operations', name: 'Lagos Branch · Electricity', category: 'Electricity', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Retail Banking', location: 'Victoria Island, Lagos', status: 'Submitted', submittedBy: 'Kelechi Eze', submittedAt: '2026-10-21',
+    id: 'SDM-OPS-1038', pillar: 'operations', name: 'Lagos Branch · Electricity', category: 'Electricity', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Retail Banking', location: 'Victoria Island, Lagos', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-21',
     values: { category: 'Electricity', consumptionValue: '8,460', unit: 'kWh', sourceReference: 'DEMO-MTR-1038' },
   },
   {
-    id: 'SDM-OPS-1027', pillar: 'operations', name: 'Regional travel · Air', category: 'Air travel', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Accra', status: 'Approved', submittedBy: 'Kelechi Eze', submittedAt: '2026-10-02',
+    id: 'SDM-OPS-1027', pillar: 'operations', name: 'Regional travel · Air', category: 'Air travel', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Accra', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-02',
     values: { category: 'Air travel', consumptionValue: '14', unit: 'trips', sourceReference: 'DEMO-TRV-1027' },
   },
   {
@@ -251,7 +251,7 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { category: 'Green loans', businessFunction: 'Corporate Banking', productType: 'Renewable energy facility', useOfFunds: 'Illustrative financing for distributed solar installations.', amountFinanced: '75,000,000', currency: 'NGN', beneficiaries: '18', sdgs: '7, 8, 13' },
   },
   {
-    id: 'SDM-FIN-0809', pillar: 'finance', name: 'Community Health Network', category: 'Social loans', period: '2026-09', country: 'Kenya', subsidiary: 'Access Bank', businessUnit: 'Retail Banking', location: 'Nairobi', status: 'Submitted', submittedBy: 'Kelechi Eze', submittedAt: '2026-10-04',
+    id: 'SDM-FIN-0809', pillar: 'finance', name: 'Community Health Network', category: 'Social loans', period: '2026-09', country: 'Kenya', subsidiary: 'Access Bank', businessUnit: 'Retail Banking', location: 'Nairobi', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-04',
     values: { category: 'Social loans', businessFunction: 'Retail Banking', productType: 'Social impact facility', useOfFunds: 'Illustrative funding for community health services.', amountFinanced: '18,500,000', currency: 'KES', beneficiaries: '6', sdgs: '3, 10' },
   },
   {
@@ -263,7 +263,7 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { initiativeDetails: 'Illustrative community learning and digital literacy programme.', livesImpacted: '320', populationSegment: 'Secondary school students', implementationLocation: 'Ikeja, Lagos', implementingPartner: 'Demo Community Foundation', amountSupported: '12,000,000', currency: 'NGN', sdgs: '4, 10', evidence: '' },
   },
   {
-    id: 'SDM-CSI-0407', pillar: 'csi', name: 'Community Health Outreach', category: 'Health', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Kumasi', status: 'Approved', submittedBy: 'Kelechi Eze', submittedAt: '2026-10-01',
+    id: 'SDM-CSI-0407', pillar: 'csi', name: 'Community Health Outreach', category: 'Health', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Kumasi', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-01',
     values: { initiativeDetails: 'Illustrative preventive health outreach.', livesImpacted: '190', populationSegment: 'Community residents', implementationLocation: 'Kumasi', implementingPartner: 'Demo Health Partners', amountSupported: '4,500,000', currency: 'GHS', sdgs: '3, 10', evidence: '' },
   },
   {
@@ -275,7 +275,7 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { volunteeringGroup: 'Access Volunteers Lagos', participatingStaff: '34', volunteeringHours: '102', cashContribution: '250,000', currency: 'NGN', beneficiaries: '74', partners: 'Demo Enterprise Network', awards: '', sdgs: '8, 10' },
   },
   {
-    id: 'SDM-VOL-0201', pillar: 'volunteering', name: 'Books & Brighter Futures', category: 'Education', period: '2026-09', country: 'Rwanda', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Kigali', status: 'In review', submittedBy: 'Kelechi Eze', submittedAt: '2026-10-03',
+    id: 'SDM-VOL-0201', pillar: 'volunteering', name: 'Books & Brighter Futures', category: 'Education', period: '2026-09', country: 'Rwanda', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Kigali', status: 'In review', submittedBy: 'Amara Okafor', submittedAt: '2026-10-03',
     values: { volunteeringGroup: 'Access Volunteers Kigali', participatingStaff: '16', volunteeringHours: '48', cashContribution: '0', currency: 'RWF', beneficiaries: '58', partners: 'Demo Learning Trust', awards: '', sdgs: '4, 10' },
   },
   {
@@ -287,7 +287,7 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { staffInvolved: 'Group Sustainability Lead', eventDate: '2026-10-14', eventLocation: 'Lagos', awardClass: 'Not applicable', details: 'Illustrative participation in a regional forum.', evidence: '' },
   },
   {
-    id: 'SDM-ADV-0109', pillar: 'advocacy', name: 'Sustainable Banking Working Group', category: 'Working group', period: '2026-09', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Sustainability', location: 'Abuja', status: 'Approved', submittedBy: 'Kelechi Eze', submittedAt: '2026-10-01',
+    id: 'SDM-ADV-0109', pillar: 'advocacy', name: 'Sustainable Banking Working Group', category: 'Working group', period: '2026-09', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Sustainability', location: 'Abuja', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-01',
     values: { staffInvolved: 'Executive Director, Risk', eventDate: '2026-09-23', eventLocation: 'Abuja', awardClass: 'Not applicable', details: 'Illustrative working group participation.', evidence: '' },
   },
   {

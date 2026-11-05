@@ -43,33 +43,6 @@ export const users: AppUser[] = [
     department: 'Group Operations',
     lastActive: '2026-10-25',
   },
-  {
-    id: 'contributor-2',
-    name: 'Kelechi Eze',
-    email: 'kelechi.eze@example.test',
-    role: 'Data Contributor',
-    status: 'Active',
-    department: 'Retail Banking',
-    lastActive: '2026-10-21',
-  },
-  {
-    id: 'reviewer-2',
-    name: 'Ngozi Adeyemi',
-    email: 'ngozi.adeyemi@example.test',
-    role: 'Sustainability Reviewer',
-    status: 'Invited',
-    department: 'Corporate Banking',
-    lastActive: '—',
-  },
-  {
-    id: 'contributor-3',
-    name: 'Daniel Mensah',
-    email: 'daniel.mensah@example.test',
-    role: 'Data Contributor',
-    status: 'Suspended',
-    department: 'People & Culture',
-    lastActive: '2026-09-12',
-  },
 ]
 
 export function canManageUsers(role: AppRole) {
