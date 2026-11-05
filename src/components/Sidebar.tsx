@@ -9,10 +9,13 @@ import {
   Leaf,
   Megaphone,
   Settings2,
+  UserCog,
   UsersRound,
   X,
 } from 'lucide-react'
 import accessLogo from '../assets/brand/access-logo.svg'
+import { canManageUsers } from '../data/users'
+import { useCurrentUser } from '../context/useCurrentUser'
 
 const navigationGroups = [
   {
@@ -35,6 +38,7 @@ const navigationGroups = [
       { to: '/submissions', label: 'Submissions & reviews', icon: ClipboardList },
       { to: '/reports', label: 'Reports & analytics', icon: BarChart3 },
       { to: '/settings', label: 'Configuration', icon: Settings2 },
+      { to: '/users', label: 'User management', icon: UserCog, adminOnly: true },
     ],
   },
 ]
@@ -45,6 +49,9 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
+  const { currentUser } = useCurrentUser()
+  const isAdmin = canManageUsers(currentUser.role)
+
   return (
     <>
       {mobileOpen && <button aria-label="Close navigation" className="fixed inset-0 z-30 bg-slate-950/30 lg:hidden" onClick={onClose} />}
@@ -68,11 +75,14 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         </div>
 
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-5">
-          {navigationGroups.map((group) => (
+          {navigationGroups.map((group) => {
+            const items = group.items.filter((item) => !item.adminOnly || isAdmin)
+            if (items.length === 0) return null
+            return (
             <div key={group.label} className="mb-6 last:mb-0">
               <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{group.label}</p>
               <div className="space-y-1">
-                {group.items.map(({ to, label, icon: Icon }) => (
+                {items.map(({ to, label, icon: Icon }) => (
                   <NavLink
                     key={to}
                     to={to}
@@ -86,7 +96,8 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                 ))}
               </div>
             </div>
-          ))}
+            )
+          })}
         </nav>
 
         <div className="border-t border-slate-100 p-4">

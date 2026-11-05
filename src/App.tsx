@@ -5,6 +5,7 @@ import PillarPage from './pages/PillarPage'
 import SubmissionsPage from './pages/SubmissionsPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
+import UserManagementPage from './pages/UserManagementPage'
 import { pillars } from './data/sustainability'
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/submissions" element={<SubmissionsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/users" element={<UserManagementPage />} />
         <Route path="/login" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>

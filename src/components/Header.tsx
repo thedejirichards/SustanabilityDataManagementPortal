@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bell, ChevronDown, Check, Menu } from 'lucide-react'
-import { users } from '../data/users'
 import { pillars } from '../data/sustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
+import { useUsers } from '../context/useUsers'
 import { useSustainability } from '../context/useSustainability'
 
 const pageTitles: Record<string, string> = {
@@ -11,6 +11,7 @@ const pageTitles: Record<string, string> = {
   '/submissions': 'Submissions & reviews',
   '/reports': 'Reports & analytics',
   '/settings': 'Configuration',
+  '/users': 'User management',
 }
 
 interface HeaderProps {
@@ -20,6 +21,7 @@ interface HeaderProps {
 export default function Header({ onMenuClick }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const { currentUser, setCurrentUser } = useCurrentUser()
+  const { users } = useUsers()
   const { records } = useSustainability()
   const location = useLocation()
   const title = pillars.find((pillar) => pillar.path === location.pathname)?.title ?? pageTitles[location.pathname] ?? 'Sustainability portal'

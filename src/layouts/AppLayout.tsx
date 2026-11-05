@@ -3,14 +3,16 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { UserProvider } from '../context/UserContext'
+import { UsersProvider } from '../context/UsersProvider'
 import { SustainabilityProvider } from '../context/SustainabilityProvider'
 
 export default function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <UserProvider>
-      <SustainabilityProvider>
+    <UsersProvider>
+      <UserProvider>
+        <SustainabilityProvider>
         <div className="flex min-h-screen bg-slate-50 text-slate-900">
           <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
           <div className="flex min-w-0 flex-1 flex-col">
@@ -27,6 +29,7 @@ export default function AppLayout() {
           </div>
         </div>
       </SustainabilityProvider>
-    </UserProvider>
+      </UserProvider>
+    </UsersProvider>
   )
 }
