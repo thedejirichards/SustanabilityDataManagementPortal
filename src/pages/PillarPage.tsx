@@ -8,7 +8,7 @@ import { canReview, canSubmitRecords, formatPeriod, type FormField, type PillarD
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 
-const PAGE_SIZE = 6
+const PAGE_SIZE = 5
 const statusOptions: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
 
 function parseOption(option: string) {

@@ -8,7 +8,7 @@ import { canReview, formatPeriod, pillarByKey, pillars, type RecordStatus, type 
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 5
 const statuses: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
 
 export default function SubmissionsPage() {

@@ -17,7 +17,15 @@ import accessLogo from '../assets/brand/access-logo.svg'
 import { canManageUsers } from '../data/users'
 import { useCurrentUser } from '../context/useCurrentUser'
 
-const navigationGroups = [
+type NavigationItem = {
+  to: string
+  label: string
+  icon: typeof LayoutDashboard
+  adminOnly?: boolean
+  hiddenForAdmin?: boolean
+}
+
+const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   {
     label: 'Workspace',
     items: [{ to: '/dashboard', label: 'Overview', icon: LayoutDashboard }],
@@ -25,17 +33,17 @@ const navigationGroups = [
   {
     label: 'Data capture',
     items: [
-      { to: '/operations', label: 'Sustainable operations', icon: Leaf },
-      { to: '/development-finance', label: 'Development finance', icon: BriefcaseBusiness },
-      { to: '/corporate-social-investment', label: 'Corporate social investment', icon: HeartHandshake },
-      { to: '/employee-volunteering', label: 'Employee volunteering', icon: UsersRound },
-      { to: '/advocacy-governance', label: 'Advocacy & governance', icon: Megaphone },
+      { to: '/operations', label: 'Sustainable operations', icon: Leaf, hiddenForAdmin: true },
+      { to: '/development-finance', label: 'Development finance', icon: BriefcaseBusiness, hiddenForAdmin: true },
+      { to: '/corporate-social-investment', label: 'Corporate social investment', icon: HeartHandshake, hiddenForAdmin: true },
+      { to: '/employee-volunteering', label: 'Employee volunteering', icon: UsersRound, hiddenForAdmin: true },
+      { to: '/advocacy-governance', label: 'Advocacy & governance', icon: Megaphone, hiddenForAdmin: true },
     ],
   },
   {
     label: 'Manage',
     items: [
-      { to: '/submissions', label: 'Submissions & reviews', icon: ClipboardList },
+      { to: '/submissions', label: 'Submissions & reviews', icon: ClipboardList, hiddenForAdmin: true },
       { to: '/reports', label: 'Reports & analytics', icon: BarChart3 },
       { to: '/settings', label: 'Configuration', icon: Settings2 },
       { to: '/users', label: 'User management', icon: UserCog, adminOnly: true },
@@ -76,7 +84,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-5">
           {navigationGroups.map((group) => {
-            const items = group.items.filter((item) => !item.adminOnly || isAdmin)
+            const items = group.items.filter((item) => (!item.adminOnly || isAdmin) && (!item.hiddenForAdmin || !isAdmin))
             if (items.length === 0) return null
             return (
             <div key={group.label} className="mb-6 last:mb-0">

@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, CircleHelp, ClipboardList, Database, FileCheck2, LockKeyhole, Settings2 } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
+import { canManageUsers } from '../data/users'
 import { pillars } from '../data/sustainability'
+import { useCurrentUser } from '../context/useCurrentUser'
 
 const factorRows = [
   { type: 'Diesel', scope: 'Scope 1' },
@@ -25,6 +27,9 @@ function IntegrationCard({ icon: Icon, title, status, description }: { icon: typ
 }
 
 export default function SettingsPage() {
+  const { currentUser } = useCurrentUser()
+  const isAdmin = canManageUsers(currentUser.role)
+
   return (
     <div className="space-y-6">
       <Breadcrumb items={[{ label: 'Overview', to: '/dashboard' }, 'Configuration']} />
@@ -35,7 +40,7 @@ export default function SettingsPage() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4 sm:px-6"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><FileCheck2 className="h-4 w-4" /></span><div><h2 className="text-sm font-bold text-slate-900">Approved emissions methodology</h2><p className="mt-1 text-[10px] text-slate-500">Configuration interface for the approved factors required by Sustainable Operations.</p></div></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left"><thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">Consumption source</th><th className="px-4 py-3">Scope</th><th className="px-4 py-3">Approved factor</th><th className="px-4 py-3">Source unit</th><th className="px-4 py-3">Output unit</th><th className="px-5 py-3">Configuration status</th></tr></thead><tbody>
-          {factorRows.map((row) => <tr key={row.type} className="border-t border-slate-100"><td className="px-5 py-3.5 text-xs font-semibold text-slate-700">{row.type}</td><td className="px-4 py-3.5"><span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{row.scope}</span></td><td className="px-4 py-3.5 text-xs text-slate-400">Not provided</td><td className="px-4 py-3.5 text-xs text-slate-400">Awaiting approval</td><td className="px-4 py-3.5 text-xs text-slate-400">Awaiting approval</td><td className="px-5 py-3.5"><span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Not configured</span></td></tr>)}
+          {factorRows.slice(0, 5).map((row) => <tr key={row.type} className="border-t border-slate-100"><td className="px-5 py-3.5 text-xs font-semibold text-slate-700">{row.type}</td><td className="px-4 py-3.5"><span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{row.scope}</span></td><td className="px-4 py-3.5 text-xs text-slate-400">Not provided</td><td className="px-4 py-3.5 text-xs text-slate-400">Awaiting approval</td><td className="px-4 py-3.5 text-xs text-slate-400">Awaiting approval</td><td className="px-5 py-3.5"><span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Not configured</span></td></tr>)}
         </tbody></table></div>
         <div className="flex flex-col justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3.5 sm:flex-row sm:items-center sm:px-6"><p className="max-w-2xl text-[10px] leading-4 text-slate-500">Calculation hooks must use approved activity units, factor sources, conversion rules and methodology versions. No default factor or unit is assumed.</p><button type="button" disabled className="h-8 shrink-0 cursor-not-allowed rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-400">Awaiting approved factor schedule</button></div>
       </section>
@@ -57,7 +62,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="flex flex-col justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-5 sm:flex-row sm:items-center sm:px-6"><div><p className="text-xs font-bold text-brand-900">Ready to review sustainability records?</p><p className="mt-1 text-[10px] text-brand-700">Open the module register to explore the available fields and demonstration submissions.</p></div><Link to={pillars[0].path} className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-white px-3.5 py-2.5 text-[10px] font-semibold text-brand-700 shadow-sm hover:bg-brand-50">Open data module <ArrowRight className="h-3 w-3" /></Link></section>
+      {!isAdmin && <section className="flex flex-col justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-5 sm:flex-row sm:items-center sm:px-6"><div><p className="text-xs font-bold text-brand-900">Ready to review sustainability records?</p><p className="mt-1 text-[10px] text-brand-700">Open the module register to explore the available fields and demonstration submissions.</p></div><Link to={pillars[0].path} className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-white px-3.5 py-2.5 text-[10px] font-semibold text-brand-700 shadow-sm hover:bg-brand-50">Open data module <ArrowRight className="h-3 w-3" /></Link></section>}
     </div>
   )
 }

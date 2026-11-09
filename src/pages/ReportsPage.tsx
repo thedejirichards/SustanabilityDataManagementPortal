@@ -3,12 +3,16 @@ import { ArrowDownToLine, ArrowRight, BarChart3, FileSpreadsheet, Info } from 'l
 import { Link } from 'react-router-dom'
 import Breadcrumb from '../components/Breadcrumb'
 import { formatPeriod, pillars, periods, type RecordStatus } from '../data/sustainability'
+import { canManageUsers } from '../data/users'
 import { useSustainability } from '../context/useSustainability'
+import { useCurrentUser } from '../context/useCurrentUser'
 
 const statuses: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
 
 export default function ReportsPage() {
   const { records } = useSustainability()
+  const { currentUser } = useCurrentUser()
+  const isAdmin = canManageUsers(currentUser.role)
   const [period, setPeriod] = useState('all')
   const [pillar, setPillar] = useState('all')
   const filteredRecords = useMemo(() => records.filter((record) =>
@@ -97,17 +101,17 @@ export default function ReportsPage() {
               return <div key={item} className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-3"><span className="flex items-center gap-2.5 text-xs font-medium text-slate-700"><span className={`h-2 w-2 rounded-full ${colors[item]}`} />{item}</span><span className="text-xs font-bold text-slate-800">{count}</span></div>
             })}
           </div>
-          <Link to="/submissions" className="mt-5 inline-flex items-center gap-1.5 text-[10px] font-semibold text-brand-600 hover:underline">Open submission register <ArrowRight className="h-3 w-3" /></Link>
+          {!isAdmin && <Link to="/submissions" className="mt-5 inline-flex items-center gap-1.5 text-[10px] font-semibold text-brand-600 hover:underline">Open submission register <ArrowRight className="h-3 w-3" /></Link>}
         </div>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex flex-col justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center"><div><h2 className="text-sm font-bold text-slate-900">Filtered record export</h2><p className="mt-1 text-[10px] text-slate-500">Export includes record metadata and workflow status.</p></div><button type="button" onClick={exportCsv} className="inline-flex w-fit items-center gap-1.5 text-[10px] font-semibold text-brand-600 hover:underline"><FileSpreadsheet className="h-3.5 w-3.5" /> Download CSV</button></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">Pillar</th><th className="px-4 py-3">Record</th><th className="px-4 py-3">Period</th><th className="px-4 py-3">Country</th><th className="px-4 py-3">Category</th><th className="px-5 py-3">Status</th></tr></thead><tbody>
-          {filteredRecords.slice(0, 10).map((record) => <tr key={record.id} className="border-t border-slate-100"><td className="whitespace-nowrap px-5 py-3 text-[11px] text-slate-500">{pillars.find((item) => item.key === record.pillar)?.shortTitle}</td><td className="max-w-52 truncate px-4 py-3 text-[11px] font-semibold text-slate-700">{record.name}</td><td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-500">{formatPeriod(record.period)}</td><td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-500">{record.country}</td><td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-500">{record.category}</td><td className="whitespace-nowrap px-5 py-3 text-[11px] text-slate-500">{record.status}</td></tr>)}
+          {filteredRecords.slice(0, 5).map((record) => <tr key={record.id} className="border-t border-slate-100"><td className="whitespace-nowrap px-5 py-3 text-[11px] text-slate-500">{pillars.find((item) => item.key === record.pillar)?.shortTitle}</td><td className="max-w-52 truncate px-4 py-3 text-[11px] font-semibold text-slate-700">{record.name}</td><td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-500">{formatPeriod(record.period)}</td><td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-500">{record.country}</td><td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-500">{record.category}</td><td className="whitespace-nowrap px-5 py-3 text-[11px] text-slate-500">{record.status}</td></tr>)}
           {filteredRecords.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-xs text-slate-500">No records match the selected report filters.</td></tr>}
         </tbody></table></div>
-        {filteredRecords.length > 10 && <p className="border-t border-slate-100 px-5 py-3 text-[10px] text-slate-400">Showing 10 of {filteredRecords.length} records. The CSV includes all matching records.</p>}
+        {filteredRecords.length > 5 && <p className="border-t border-slate-100 px-5 py-3 text-[10px] text-slate-400">Showing 5 of {filteredRecords.length} records. The CSV includes all matching records.</p>}
       </section>
     </div>
   )

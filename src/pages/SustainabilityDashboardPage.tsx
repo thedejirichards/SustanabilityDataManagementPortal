@@ -18,6 +18,7 @@ import {
 import Breadcrumb from '../components/Breadcrumb'
 import StatusBadge from '../components/StatusBadge'
 import { businessUnits, canSubmitRecords, countries, formatPeriod, pillarByKey, pillars, periods, subsidiaries, type SustainabilityRecord } from '../data/sustainability'
+import { canManageUsers } from '../data/users'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 
@@ -99,7 +100,7 @@ function ActivityChart({ records }: { records: SustainabilityRecord[] }) {
   )
 }
 
-function ActivityRow({ record }: { record: SustainabilityRecord }) {
+function ActivityRow({ record, canViewPillar }: { record: SustainabilityRecord; canViewPillar: boolean }) {
   const pillar = pillarByKey[record.pillar]
   const Icon = pillar.icon
   return (
@@ -116,7 +117,11 @@ function ActivityRow({ record }: { record: SustainabilityRecord }) {
       <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{formatPeriod(record.period)}</td>
       <td className="whitespace-nowrap px-4 py-3.5"><StatusBadge status={record.status} /></td>
       <td className="whitespace-nowrap px-5 py-3.5 text-right">
-        <Link to={pillar.path} className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:text-brand-800">View <ArrowRight className="h-3 w-3" /></Link>
+        {canViewPillar ? (
+          <Link to={pillar.path} className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:text-brand-800">View <ArrowRight className="h-3 w-3" /></Link>
+        ) : (
+          <span className="text-[11px] font-medium text-slate-400">—</span>
+        )}
       </td>
     </tr>
   )
@@ -125,7 +130,9 @@ function ActivityRow({ record }: { record: SustainabilityRecord }) {
 export default function SustainabilityDashboardPage() {
   const { records } = useSustainability()
   const { currentUser } = useCurrentUser()
-  const canAddData = canSubmitRecords(currentUser.role)
+  const isAdmin = canManageUsers(currentUser.role)
+  const canSeeDataCapture = !isAdmin
+  const canAddData = canSubmitRecords(currentUser.role) && canSeeDataCapture
   const [period, setPeriod] = useState('all')
   const [country, setCountry] = useState('all')
   const [subsidiary, setSubsidiary] = useState('all')
@@ -187,7 +194,7 @@ export default function SustainabilityDashboardPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Sustainability indicators">
         <MetricCard label="Records in view" value={filteredRecords.length.toLocaleString()} note="Illustrative records matching the filters" icon={FilePlus2} tone="blue" suffix={<span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[9px] font-semibold text-slate-500"><ArrowUpRight className="h-3 w-3" /> Demo</span>} />
         <MetricCard label="Approved submissions" value={approvedCount.toLocaleString()} note="Approved in the demonstration dataset" icon={ClipboardCheck} tone="green" />
-        <MetricCard label="Awaiting review" value={reviewCount.toLocaleString()} note="Submitted, awaiting decision" icon={Clock3} tone="amber" suffix={<Link to="/submissions" className="text-[10px] font-semibold text-brand-600 hover:underline">Review queue</Link>} />
+        <MetricCard label="Awaiting review" value={reviewCount.toLocaleString()} note="Submitted, awaiting decision" icon={Clock3} tone="amber" suffix={!isAdmin ? <Link to="/submissions" className="text-[10px] font-semibold text-brand-600 hover:underline">Review queue</Link> : undefined} />
         <MetricCard label="Pillars with activity" value={`${activePillars} / ${pillars.length}`} note="Pillars with at least one matching record" icon={BarChart3} tone="orange" />
       </section>
 
@@ -225,7 +232,9 @@ export default function SustainabilityDashboardPage() {
               <p className="text-xs font-semibold text-brand-900">{operationsCount} source records</p>
               <p className="mt-0.5 text-[10px] text-brand-700">In the current filtered view</p>
             </div>
-            <Link to="/operations" aria-label="View operations data" className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-brand-600 shadow-sm hover:text-brand-800"><ArrowRight className="h-4 w-4" /></Link>
+            {canSeeDataCapture && (
+              <Link to="/operations" aria-label="View operations data" className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-brand-600 shadow-sm hover:text-brand-800"><ArrowRight className="h-4 w-4" /></Link>
+            )}
           </div>
           <div className="mt-auto pt-5">
             <Link to="/settings" className="flex items-center gap-2 text-[10px] font-semibold text-slate-500 hover:text-brand-600"><Target className="h-3.5 w-3.5" /> Review factors & target configuration <ArrowRight className="ml-auto h-3 w-3" /></Link>
@@ -233,7 +242,7 @@ export default function SustainabilityDashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.9fr)]">
+      <section className={canSeeDataCapture ? 'grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.9fr)]' : 'grid grid-cols-1 gap-5'}>
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
             <div>
@@ -245,37 +254,39 @@ export default function SustainabilityDashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[610px] text-left">
               <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-2.5">Record</th><th className="px-4 py-2.5">Period</th><th className="px-4 py-2.5">Status</th><th className="px-5 py-2.5 text-right"> </th></tr></thead>
-              <tbody>{recentRecords.map((record) => <ActivityRow key={record.id} record={record} />)}</tbody>
+              <tbody>{recentRecords.map((record) => <ActivityRow key={record.id} record={record} canViewPillar={canSeeDataCapture} />)}</tbody>
             </table>
             {recentRecords.length === 0 && <div className="px-6 py-10 text-center text-xs text-slate-500">No records match these filters.</div>}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div><h2 className="text-sm font-bold text-slate-900">Pillar activity</h2><p className="mt-1 text-[10px] text-slate-500">Demonstration records by area</p></div>
-            <Link to="/reports" aria-label="Open reports" className="rounded-lg bg-slate-50 p-2 text-slate-500 hover:text-brand-600"><ArrowDownRight className="h-4 w-4" /></Link>
+        {canSeeDataCapture && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div><h2 className="text-sm font-bold text-slate-900">Pillar activity</h2><p className="mt-1 text-[10px] text-slate-500">Demonstration records by area</p></div>
+              <Link to="/reports" aria-label="Open reports" className="rounded-lg bg-slate-50 p-2 text-slate-500 hover:text-brand-600"><ArrowDownRight className="h-4 w-4" /></Link>
+            </div>
+            <div className="mt-4 space-y-1">
+              {pillars.map((item) => {
+                const count = filteredRecords.filter((record) => record.pillar === item.key).length
+                const Icon = item.icon
+                const percent = filteredRecords.length ? (count / filteredRecords.length) * 100 : 0
+                return (
+                  <Link key={item.key} to={item.path} className="block rounded-xl px-2.5 py-2.5 transition-colors hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600"><Icon className="h-4 w-4" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-3"><span className="truncate text-[11px] font-semibold text-slate-700">{item.shortTitle}</span><span className="text-[11px] font-bold text-slate-800">{count}</span></span>
+                        <span className="mt-1.5 block h-1 w-full overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-brand-500" style={{ width: `${percent}%` }} /></span>
+                      </span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50/70 px-3 py-2.5 text-[10px] leading-4 text-amber-800"><CircleHelp className="mt-0.5 h-3.5 w-3.5 shrink-0" />Configured monthly and year-to-date targets are not available in this workspace.</div>
           </div>
-          <div className="mt-4 space-y-1">
-            {pillars.map((item) => {
-              const count = filteredRecords.filter((record) => record.pillar === item.key).length
-              const Icon = item.icon
-              const percent = filteredRecords.length ? (count / filteredRecords.length) * 100 : 0
-              return (
-                <Link key={item.key} to={item.path} className="block rounded-xl px-2.5 py-2.5 transition-colors hover:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600"><Icon className="h-4 w-4" /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-3"><span className="truncate text-[11px] font-semibold text-slate-700">{item.shortTitle}</span><span className="text-[11px] font-bold text-slate-800">{count}</span></span>
-                      <span className="mt-1.5 block h-1 w-full overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-brand-500" style={{ width: `${percent}%` }} /></span>
-                    </span>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-          <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50/70 px-3 py-2.5 text-[10px] leading-4 text-amber-800"><CircleHelp className="mt-0.5 h-3.5 w-3.5 shrink-0" />Configured monthly and year-to-date targets are not available in this workspace.</div>
-        </div>
+        )}
       </section>
     </div>
   )

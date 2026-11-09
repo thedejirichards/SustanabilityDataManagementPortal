@@ -7,7 +7,7 @@ import { appRoles, canManageUsers, userStatuses, type AppRole, type AppUser, typ
 import { useCurrentUser } from '../context/useCurrentUser'
 import { useUsers } from '../context/useUsers'
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 5
 
 const roleBadgeClasses: Record<AppRole, string> = {
   'Data Contributor': 'bg-slate-100 text-slate-600',
