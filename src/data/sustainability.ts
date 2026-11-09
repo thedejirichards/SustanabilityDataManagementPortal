@@ -11,7 +11,7 @@ import type { AppRole } from './users'
 
 export type PillarKey = 'operations' | 'finance' | 'csi' | 'volunteering' | 'advocacy'
 export type RecordStatus = 'Submitted' | 'Approved' | 'Rejected'
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file'
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file' | 'multi-text'
 
 export interface SustainabilityRecord {
   id: string
@@ -39,6 +39,7 @@ export interface FormField {
   fullWidth?: boolean
   min?: number
   step?: number
+  showWhen?: { field: string; equals?: string; notEquals?: string }
 }
 
 export interface PillarDefinition {
@@ -95,6 +96,8 @@ const reportingFields: FormField[] = [
   { name: 'location', label: 'Location / branch', type: 'text', required: true },
 ]
 
+const reportingFieldsWithoutLocation = reportingFields.filter((field) => field.name !== 'location')
+
 export const pillars: PillarDefinition[] = [
   {
     key: 'operations',
@@ -109,10 +112,11 @@ export const pillars: PillarDefinition[] = [
     categories: ['Diesel', 'Petrol', 'Electricity', 'Air travel', 'Uber', 'Bolt'],
     fields: [
       ...reportingFields,
-      { name: 'category', label: 'Consumption type', type: 'select', required: true, options: ['Diesel', 'Petrol', 'Electricity', 'Air travel', 'Uber', 'Bolt'] },
+      { name: 'category', label: 'Consumption type', type: 'select', required: true, options: ['Diesel', 'Petrol', 'Electricity', 'Air travel', 'Uber', 'Bolt', 'Waste Recycling locations', "Solar powered ATMs", 'Training for Suppliers and vendors'] },
       { name: 'consumptionValue', label: 'Consumption value', type: 'number', required: true, min: 0, step: 0.01 },
       { name: 'unit', label: 'Source unit', type: 'text', required: true, hint: 'Use the unit shown in the source record; do not convert.' },
       { name: 'sourceReference', label: 'Source reference', type: 'text', hint: 'Invoice, meter, travel log or other evidence reference.' },
+      { name: 'evidence', label: 'Supporting evidence', type: 'file', hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
   {
@@ -143,6 +147,7 @@ export const pillars: PillarDefinition[] = [
       { name: 'dfiFundsReceived', label: 'DFI funds received', type: 'number', min: 0, step: 0.01 },
       { name: 'dfiFundsUtilized', label: 'DFI funds utilized', type: 'number', min: 0, step: 0.01 },
       { name: 'sdgs', label: 'Relevant SDGs', type: 'text', hint: 'List applicable SDG numbers or names.' },
+      { name: 'evidence', label: 'Supporting evidence', type: 'file', hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
   {
@@ -157,7 +162,8 @@ export const pillars: PillarDefinition[] = [
     categoryLabel: 'Focus area',
     categories: focusAreas,
     fields: [
-      ...reportingFields,
+      ...reportingFieldsWithoutLocation,
+      { name: 'location', label: 'Location / branch', type: 'multi-text', required: true, fullWidth: true, hint: 'Add one or more locations or branches covered by this initiative.' },
       { name: 'name', label: 'Initiative name', type: 'text', required: true },
       { name: 'category', label: 'Focus area', type: 'select', required: true, options: focusAreas },
       { name: 'initiativeDetails', label: 'Initiative details', type: 'textarea', required: true, fullWidth: true },
@@ -183,18 +189,19 @@ export const pillars: PillarDefinition[] = [
     categoryLabel: 'Focus area',
     categories: focusAreas,
     fields: [
-      ...reportingFields,
+      ...reportingFields.map((field) => field.name === 'location' ? { ...field, required: false } : field),
       { name: 'name', label: 'Initiative name', type: 'text', required: true },
       { name: 'category', label: 'Focus area', type: 'select', required: true, options: focusAreas },
       { name: 'volunteeringGroup', label: 'Volunteering group', type: 'text', required: true },
       { name: 'participatingStaff', label: 'Participating staff', type: 'number', required: true, min: 0, step: 1 },
-      { name: 'volunteeringHours', label: 'Volunteering hours', type: 'number', min: 0, step: 0.25 },
-      { name: 'cashContribution', label: 'Cash contribution', type: 'number', min: 0, step: 0.01 },
-      { name: 'currency', label: 'Currency', type: 'text', hint: 'Enter a currency code if a cash contribution is provided.' },
-      { name: 'beneficiaries', label: 'Beneficiaries / lives impacted', type: 'number', min: 0, step: 1 },
-      { name: 'partners', label: 'Partners', type: 'text' },
-      { name: 'awards', label: 'Awards / recognitions', type: 'text' },
-      { name: 'sdgs', label: 'Relevant SDGs', type: 'text' },
+      { name: 'volunteeringHours', label: 'Volunteering hours', type: 'number', required: true, min: 0, step: 0.25 },
+      { name: 'cashContribution', label: 'Cash contribution', type: 'number', required: true, min: 0, step: 0.01 },
+      { name: 'currency', label: 'Currency', type: 'text', required: true, hint: 'Enter a currency code if a cash contribution is provided.' },
+      { name: 'beneficiaries', label: 'Beneficiaries / lives impacted', type: 'number', required: true, min: 0, step: 1 },
+      { name: 'partners', label: 'Partners', type: 'text', required: true },
+      { name: 'awards', label: 'Awards / recognitions', type: 'text', required: true },
+      { name: 'sdgs', label: 'Relevant SDGs', type: 'text', required: true },
+      { name: 'evidence', label: 'Supporting evidence', type: 'file', required: true, hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
   {
@@ -207,15 +214,20 @@ export const pillars: PillarDefinition[] = [
     formTitle: 'Add an advocacy or governance record',
     formDescription: 'Capture the engagement, participants and supporting references.',
     categoryLabel: 'Engagement type',
-    categories: ['Speaking engagement', 'Platform / forum', 'Working group', 'Taskforce', 'Award / recognition'],
+    categories: ['Speaking engagement', 'Working group', 'Taskforce', 'Award / recognition'],
     fields: [
       ...reportingFields,
       { name: 'name', label: 'Engagement / recognition name', type: 'text', required: true },
-      { name: 'category', label: 'Engagement type', type: 'select', required: true, options: ['Speaking engagement', 'Platform / forum', 'Working group', 'Taskforce', 'Award / recognition'] },
-      { name: 'staffInvolved', label: 'Executive / management staff involved', type: 'text', required: true },
+      { name: 'category', label: 'Engagement type', type: 'select', required: true, options: ['Speaking engagement', 'Working group', 'Taskforce', 'Award / recognition'] },
+      { name: 'staffInvolved', label: 'Executive / management staff involved', type: 'text', required: true, showWhen: { field: 'category', notEquals: 'Speaking engagement' } },
+      { name: 'speakerName', label: 'Name of speaker', type: 'text', required: true, showWhen: { field: 'category', equals: 'Speaking engagement' } },
+      { name: 'speakingEngagementType', label: 'Type of speaking engagement', type: 'select', required: true, options: ['Local', 'Global', 'International'], showWhen: { field: 'category', equals: 'Speaking engagement' } },
+      { name: 'topic', label: 'Topic of discussion', type: 'text', required: true, fullWidth: true, showWhen: { field: 'category', equals: 'Speaking engagement' } },
+      { name: 'organizers', label: 'Organizers', type: 'text', required: true, showWhen: { field: 'category', equals: 'Speaking engagement' } },
       { name: 'eventDate', label: 'Date', type: 'date', required: true },
       { name: 'eventLocation', label: 'Location', type: 'text', required: true },
-      { name: 'awardClass', label: 'Award classification', type: 'select', options: ['Local', 'International', 'Not applicable'] },
+      { name: 'audienceCount', label: 'Number of addressed audience', type: 'number', required: true, min: 0, step: 1, showWhen: { field: 'category', equals: 'Speaking engagement' } },
+      { name: 'awardClass', label: 'Award classification', type: 'select', options: ['Local', 'International', 'Global awards', 'Not applicable'], showWhen: { field: 'category', equals: 'Award / recognition' } },
       { name: 'details', label: 'Details', type: 'textarea', fullWidth: true },
       { name: 'evidence', label: 'Supporting evidence', type: 'file', hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
@@ -240,27 +252,27 @@ export function canSubmitRecords(role: AppRole) {
 export const demoRecords: SustainabilityRecord[] = [
   {
     id: 'SDM-OPS-1042', pillar: 'operations', name: 'Head Office · Diesel', category: 'Diesel', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Group Operations', location: 'Victoria Island, Lagos', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-22',
-    values: { category: 'Diesel', consumptionValue: '1,250', unit: 'L', sourceReference: 'DEMO-INV-1042' },
+    values: { category: 'Diesel', consumptionValue: '1,250', unit: 'L', sourceReference: 'DEMO-INV-1042', evidence: '' },
   },
   {
     id: 'SDM-OPS-1038', pillar: 'operations', name: 'Lagos Branch · Electricity', category: 'Electricity', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Retail Banking', location: 'Victoria Island, Lagos', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-21',
-    values: { category: 'Electricity', consumptionValue: '8,460', unit: 'kWh', sourceReference: 'DEMO-MTR-1038' },
+    values: { category: 'Electricity', consumptionValue: '8,460', unit: 'kWh', sourceReference: 'DEMO-MTR-1038', evidence: '' },
   },
   {
     id: 'SDM-OPS-1027', pillar: 'operations', name: 'Regional travel · Air', category: 'Air travel', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Accra', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-02',
-    values: { category: 'Air travel', consumptionValue: '14', unit: 'trips', sourceReference: 'DEMO-TRV-1027' },
+    values: { category: 'Air travel', consumptionValue: '14', unit: 'trips', sourceReference: 'DEMO-TRV-1027', evidence: '' },
   },
   {
     id: 'SDM-FIN-0814', pillar: 'finance', name: 'Sunrise Solar Cooperative', category: 'Green loans', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Abuja', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-22',
-    values: { category: 'Green loans', businessFunction: 'Corporate Banking', productType: 'Renewable energy facility', useOfFunds: 'Illustrative financing for distributed solar installations.', amountFinanced: '75,000,000', currency: 'NGN', beneficiaries: '18', sdgs: '7, 8, 13' },
+    values: { category: 'Green loans', businessFunction: 'Corporate Banking', productType: 'Renewable energy facility', useOfFunds: 'Illustrative financing for distributed solar installations.', amountFinanced: '75,000,000', currency: 'NGN', beneficiaries: '18', sdgs: '7, 8, 13', evidence: '' },
   },
   {
     id: 'SDM-FIN-0809', pillar: 'finance', name: 'Community Health Network', category: 'Social loans', period: '2026-09', country: 'Kenya', subsidiary: 'Access Bank', businessUnit: 'Retail Banking', location: 'Nairobi', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-04',
-    values: { category: 'Social loans', businessFunction: 'Retail Banking', productType: 'Social impact facility', useOfFunds: 'Illustrative funding for community health services.', amountFinanced: '18,500,000', currency: 'KES', beneficiaries: '6', sdgs: '3, 10' },
+    values: { category: 'Social loans', businessFunction: 'Retail Banking', productType: 'Social impact facility', useOfFunds: 'Illustrative funding for community health services.', amountFinanced: '18,500,000', currency: 'KES', beneficiaries: '6', sdgs: '3, 10', evidence: '' },
   },
   {
     id: 'SDM-FIN-0796', pillar: 'finance', name: 'DFI facility utilization', category: 'DFI funds', period: '2026-08', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Lagos', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-09-06',
-    values: { category: 'DFI funds', businessFunction: 'Corporate Banking', productType: 'Development finance', useOfFunds: 'Illustrative utilization record.', amountFinanced: '120,000,000', currency: 'NGN', beneficiaries: '42', sdgs: '8, 9' },
+    values: { category: 'DFI funds', businessFunction: 'Corporate Banking', productType: 'Development finance', useOfFunds: 'Illustrative utilization record.', amountFinanced: '120,000,000', currency: 'NGN', beneficiaries: '42', sdgs: '8, 9', evidence: '' },
   },
   {
     id: 'SDM-CSI-0412', pillar: 'csi', name: 'Learning for Tomorrow', category: 'Education', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Ikeja, Lagos', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-20',
@@ -276,15 +288,15 @@ export const demoRecords: SustainabilityRecord[] = [
   },
   {
     id: 'SDM-VOL-0208', pillar: 'volunteering', name: 'Skills for Small Business', category: 'Entrepreneurship', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Lagos', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-18',
-    values: { volunteeringGroup: 'Access Volunteers Lagos', participatingStaff: '34', volunteeringHours: '102', cashContribution: '250,000', currency: 'NGN', beneficiaries: '74', partners: 'Demo Enterprise Network', awards: '', sdgs: '8, 10' },
+    values: { volunteeringGroup: 'Access Volunteers Lagos', participatingStaff: '34', volunteeringHours: '102', cashContribution: '250,000', currency: 'NGN', beneficiaries: '74', partners: 'Demo Enterprise Network', awards: '', sdgs: '8, 10', evidence: '' },
   },
   {
     id: 'SDM-VOL-0201', pillar: 'volunteering', name: 'Books & Brighter Futures', category: 'Education', period: '2026-09', country: 'Rwanda', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Kigali', status: 'Rejected', submittedBy: 'Amara Okafor', submittedAt: '2026-10-03',
-    values: { volunteeringGroup: 'Access Volunteers Kigali', participatingStaff: '16', volunteeringHours: '48', cashContribution: '0', currency: 'RWF', beneficiaries: '58', partners: 'Demo Learning Trust', awards: '', sdgs: '4, 10' },
+    values: { volunteeringGroup: 'Access Volunteers Kigali', participatingStaff: '16', volunteeringHours: '48', cashContribution: '0', currency: 'RWF', beneficiaries: '58', partners: 'Demo Learning Trust', awards: '', sdgs: '4, 10', evidence: '' },
   },
   {
     id: 'SDM-VOL-0194', pillar: 'volunteering', name: 'Coastal Clean-up Day', category: 'Environment', period: '2026-08', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Accra', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-09-08',
-    values: { volunteeringGroup: 'Access Volunteers Accra', participatingStaff: '23', volunteeringHours: '69', cashContribution: '', currency: 'GHS', beneficiaries: '160', partners: 'Demo Coastal Alliance', awards: '', sdgs: '11, 13' },
+    values: { volunteeringGroup: 'Access Volunteers Accra', participatingStaff: '23', volunteeringHours: '69', cashContribution: '', currency: 'GHS', beneficiaries: '160', partners: 'Demo Coastal Alliance', awards: '', sdgs: '11, 13', evidence: '' },
   },
   {
     id: 'SDM-ADV-0116', pillar: 'advocacy', name: 'Regional Climate Finance Forum', category: 'Platform / forum', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Sustainability', location: 'Lagos', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-10-19',

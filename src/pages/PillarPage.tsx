@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { ArrowRight, Check, CircleHelp, Eye, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
+import { ArrowRight, Check, CircleHelp, Eye, FilePlus2, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
@@ -10,6 +10,32 @@ import { useCurrentUser } from '../context/useCurrentUser'
 
 const PAGE_SIZE = 5
 const statusOptions: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
+
+function parseMultiText(value: string | undefined) {
+  if (!value) return ['']
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (Array.isArray(parsed)) {
+      const items = parsed.map((item) => String(item ?? ''))
+      return items.length > 0 ? items : ['']
+    }
+  } catch {
+    // legacy single value
+  }
+  return [value]
+}
+
+function formatMultiText(value: string | undefined) {
+  return parseMultiText(value).map((item) => item.trim()).filter(Boolean).join('; ')
+}
+
+function isFieldVisible(field: FormField, values: Record<string, string>) {
+  if (!field.showWhen) return true
+  const current = values[field.showWhen.field] ?? ''
+  if (field.showWhen.equals !== undefined) return current === field.showWhen.equals
+  if (field.showWhen.notEquals !== undefined) return current !== field.showWhen.notEquals
+  return true
+}
 
 function parseOption(option: string) {
   const separator = option.indexOf('|')
@@ -103,10 +129,21 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
     if (errors[field.name]) setErrors((current) => ({ ...current, [field.name]: '' }))
   }
 
+  function setMultiTextValue(field: FormField, items: string[]) {
+    setValue(field, JSON.stringify(items))
+  }
+
   function validate() {
     const next: Record<string, string> = {}
     for (const field of pillar.fields) {
-      const value = values[field.name]?.trim() ?? ''
+      if (!isFieldVisible(field, values)) continue
+      const raw = values[field.name] ?? ''
+      if (field.type === 'multi-text') {
+        const items = parseMultiText(raw).map((item) => item.trim()).filter(Boolean)
+        if (field.required && items.length === 0) next[field.name] = `${field.label} requires at least one value.`
+        continue
+      }
+      const value = raw.trim()
       if (field.required && !value) next[field.name] = `${field.label} is required.`
       if (field.type === 'number' && value && Number(value) < (field.min ?? 0)) next[field.name] = `${field.label} must be ${field.min === 0 ? 'zero or greater' : `at least ${field.min}`}.`
     }
@@ -119,9 +156,16 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
     if (!validate()) return
 
     const category = values.category || pillar.categories[0]
-    const location = values.location || values.implementationLocation || values.eventLocation || ''
+    const locationField = pillar.fields.find((field) => field.name === 'location')
+    const location = locationField?.type === 'multi-text'
+      ? formatMultiText(values.location)
+      : (values.location || values.implementationLocation || values.eventLocation || '')
     const period = values.period || ''
     const namedValue = values.name?.trim()
+    const normalizedValues: Record<string, string> = { ...values, category }
+    if (locationField?.type === 'multi-text') {
+      normalizedValues.location = JSON.stringify(parseMultiText(values.location).map((item) => item.trim()).filter(Boolean))
+    }
     const record: SustainabilityRecord = {
       id: `SDM-${pillar.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
       pillar: pillar.key,
@@ -135,7 +179,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
       status: 'Submitted',
       submittedBy: currentUser.name,
       submittedAt: new Date().toISOString().slice(0, 10),
-      values: { ...values, category },
+      values: normalizedValues,
     }
     addRecord(record)
     setSaved(true)
@@ -161,12 +205,12 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
       </div>
       <form onSubmit={submit} noValidate>
         <div className="grid grid-cols-1 gap-x-4 gap-y-3.5 sm:grid-cols-2">
-          {pillar.fields.map((field) => {
+          {pillar.fields.filter((field) => isFieldVisible(field, values)).map((field) => {
             const value = values[field.name] ?? ''
             const invalid = Boolean(errors[field.name])
             const controlClass = `mt-1.5 w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${invalid ? 'border-rose-400' : 'border-slate-200'}`
             return (
-              <label key={field.name} className={`block min-w-0 ${field.fullWidth || field.type === 'textarea' ? 'sm:col-span-2' : ''}`}>
+              <div key={field.name} className={`block min-w-0 ${field.fullWidth || field.type === 'textarea' || field.type === 'multi-text' ? 'sm:col-span-2' : ''}`}>
                 <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
                   {field.label}{field.required && <span className="text-rose-500">*</span>}
                 </span>
@@ -183,13 +227,51 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
                   <textarea value={value} onChange={(event) => setValue(field, event.target.value)} aria-label={field.label} aria-invalid={invalid} rows={3} className={`${controlClass} resize-y`} />
                 ) : field.type === 'file' ? (
                   <span className={`mt-1.5 flex min-h-10 items-center rounded-xl border border-dashed px-3 py-2.5 ${invalid ? 'border-rose-400' : 'border-slate-300'}`}>
-                  <input type="file" aria-label={field.label} onChange={(event) => setValue(field, event.target.files?.[0]?.name ?? '')} className="block w-full text-[10px] text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-2.5 file:py-1.5 file:text-[10px] file:font-semibold file:text-brand-700" />
+                    <input type="file" aria-label={field.label} onChange={(event) => setValue(field, event.target.files?.[0]?.name ?? '')} className="block w-full text-[10px] text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-2.5 file:py-1.5 file:text-[10px] file:font-semibold file:text-brand-700" />
                   </span>
+                ) : field.type === 'multi-text' ? (
+                  <div className="mt-1.5 space-y-2">
+                    {parseMultiText(value).map((item, index, items) => (
+                      <div key={`${field.name}-${index}`} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={item}
+                          onChange={(event) => {
+                            const next = [...items]
+                            next[index] = event.target.value
+                            setMultiTextValue(field, next)
+                          }}
+                          aria-label={`${field.label} ${index + 1}`}
+                          aria-invalid={invalid}
+                          placeholder={`${field.label} ${index + 1}`}
+                          className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${invalid ? 'border-rose-400' : 'border-slate-200'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = items.filter((_, itemIndex) => itemIndex !== index)
+                            setMultiTextValue(field, next.length > 0 ? next : [''])
+                          }}
+                          aria-label={`Remove ${field.label.toLowerCase()} ${index + 1}`}
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setMultiTextValue(field, [...parseMultiText(value), ''])}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-brand-200 px-3 py-2 text-[10px] font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-50"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add location / branch
+                    </button>
+                  </div>
                 ) : (
                   <input type={field.type} min={field.min} step={field.step} value={value} onChange={(event) => setValue(field, event.target.value)} aria-label={field.label} aria-invalid={invalid} className={controlClass} />
                 )}
                 {invalid && <span role="alert" className="mt-1 block text-[10px] font-medium text-rose-600">{errors[field.name]}</span>}
-              </label>
+              </div>
             )
           })}
         </div>

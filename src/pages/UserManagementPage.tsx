@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Ban, CheckCircle2, Eye, Mail, Pencil, Plus, Search, ShieldCheck, ShieldX, UserCog } from 'lucide-react'
+import { Ban, Check, CheckCircle2, Clock3, Eye, Mail, Pencil, Plus, RotateCcw, Search, ShieldCheck, ShieldX, UserCog } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
@@ -38,10 +38,11 @@ interface UserFormModalProps {
   open: boolean
   onClose: () => void
   editing: AppUser | null
+  submitForApproval?: boolean
   onSubmit: (values: { name: string; email: string; role: AppRole; status: UserStatus; department: string }) => void
 }
 
-function UserFormModal({ open, onClose, editing, onSubmit }: UserFormModalProps) {
+function UserFormModal({ open, onClose, editing, submitForApproval = false, onSubmit }: UserFormModalProps) {
   const [name, setName] = useState(editing?.name ?? '')
   const [email, setEmail] = useState(editing?.email ?? '')
   const [role, setRole] = useState<AppRole>(editing?.role ?? 'Data Contributor')
@@ -72,18 +73,18 @@ function UserFormModal({ open, onClose, editing, onSubmit }: UserFormModalProps)
   }
 
   return (
-    <Modal open={open} onClose={close} label={editing ? 'Edit user' : 'Add user'}>
+    <Modal open={open} onClose={close} label={editing ? 'Edit user' : submitForApproval ? 'Request new user' : 'Add user'}>
       {saved ? (
         <div className="py-7 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 className="h-5 w-5" /></span>
-          <h2 className="mt-4 text-lg font-bold text-slate-900">User {editing ? 'updated' : 'invited'}</h2>
-          <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">The change is applied to this demonstration session. Production provisioning, SSO synchronization and email invite delivery are not connected.</p>
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">{submitForApproval ? <Clock3 className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}</span>
+          <h2 className="mt-4 text-lg font-bold text-slate-900">{editing ? 'User updated' : submitForApproval ? 'Request submitted for approval' : 'User invited'}</h2>
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">{editing ? 'The change is applied to this demonstration session.' : submitForApproval ? 'The user addition request is pending checker approval in this demonstration session.' : 'The change is applied to this demonstration session. Production provisioning, SSO synchronization and email invite delivery are not connected.'}</p>
           <button type="button" onClick={close} className="mt-6 rounded-xl bg-brand-600 px-5 py-2.5 text-xs font-semibold text-white hover:bg-brand-700">Done</button>
         </div>
       ) : (
         <div className="pr-6">
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">{editing ? 'Edit user' : 'Invite a user'}</h2>
-          <p className="mt-1 text-xs text-slate-500">{editing ? 'Update the user’s profile, role or status.' : 'Create an account and assign a role. The user will receive an invite once Access SSO is connected.'}</p>
+          <h2 className="text-lg font-bold tracking-tight text-slate-900">{editing ? 'Edit user' : submitForApproval ? 'Request a new user' : 'Invite a user'}</h2>
+          <p className="mt-1 text-xs text-slate-500">{editing ? 'Update the user’s profile, role or status.' : submitForApproval ? 'As a portal admin maker, submit this user addition request for checker approval.' : 'Create an account and assign a role. The user will receive an invite once Access SSO is connected.'}</p>
           <form onSubmit={submit} noValidate className="mt-5 grid grid-cols-1 gap-x-4 gap-y-3.5 sm:grid-cols-2">
             <label className="block min-w-0 sm:col-span-2">
               <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">Full name <span className="text-rose-500">*</span></span>
@@ -114,7 +115,7 @@ function UserFormModal({ open, onClose, editing, onSubmit }: UserFormModalProps)
             </label>
             <div className="mt-1 flex items-center justify-end gap-2 sm:col-span-2">
               <button type="button" onClick={close} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-              <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-brand-700">{editing ? 'Save changes' : 'Send invite'}</button>
+              <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-brand-700">{editing ? 'Save changes' : submitForApproval ? 'Submit for approval' : 'Send invite'}</button>
             </div>
           </form>
         </div>
@@ -125,7 +126,7 @@ function UserFormModal({ open, onClose, editing, onSubmit }: UserFormModalProps)
 
 export default function UserManagementPage() {
   const { currentUser } = useCurrentUser()
-  const { users, addUser, updateUser } = useUsers()
+  const { users, userAdditionRequests, addUser, requestUserAddition, approveUserAddition, rejectUserAddition, updateUser } = useUsers()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -135,6 +136,9 @@ export default function UserManagementPage() {
   const [selected, setSelected] = useState<AppUser | null>(null)
 
   const isAdmin = canManageUsers(currentUser.role)
+  const isMaker = currentUser.adminType === 'maker'
+  const isChecker = currentUser.adminType === 'checker'
+  const pendingRequests = userAdditionRequests.filter((request) => request.decisionStatus === 'Pending')
 
   const filtered = useMemo(() => users.filter((user) => {
     const query = `${user.name} ${user.email} ${user.department} ${user.role}`.toLowerCase()
@@ -154,6 +158,8 @@ export default function UserManagementPage() {
   function submitUser(values: { name: string; email: string; role: AppRole; status: UserStatus; department: string }) {
     if (editing) {
       updateUser(editing.id, values)
+    } else if (isMaker) {
+      requestUserAddition(values, currentUser.name, currentUser.id)
     } else {
       addUser(values)
     }
@@ -197,12 +203,14 @@ export default function UserManagementPage() {
             <p className="mt-1 max-w-2xl text-sm text-slate-500">Manage who can access the portal, what they can do and their account status.</p>
           </div>
         </div>
-        <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700"><Plus className="h-4 w-4" /> Add user</button>
+        {!isChecker && (
+          <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700"><Plus className="h-4 w-4" /> {isMaker ? 'Request new user' : 'Add user'}</button>
+        )}
       </section>
 
       <div className="flex items-start gap-3 rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3.5">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-        <p className="text-xs leading-5 text-brand-900"><span className="font-bold">Demonstration workspace.</span> Changes are applied to this browser session only. Production provisioning, Access SSO synchronization and email invites require the identity service.</p>
+        <p className="text-xs leading-5 text-brand-900"><span className="font-bold">Maker-checker control.</span> {isMaker ? 'As a portal admin maker, new user additions are submitted as requests for checker approval.' : isChecker ? 'As a portal admin checker, review and approve or reject pending user addition requests.' : 'Changes are applied to this browser session only. Production provisioning, Access SSO synchronization and email invites require the identity service.'}</p>
       </div>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -211,6 +219,54 @@ export default function UserManagementPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Reviewers</p><p className="mt-1 text-2xl font-bold text-amber-600">{counts.reviewers}</p><p className="mt-1 text-[10px] text-slate-400">Can review submissions</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Contributors</p><p className="mt-1 text-2xl font-bold text-slate-700">{counts.contributors}</p><p className="mt-1 text-[10px] text-slate-400">Submit data only · {counts.active} active</p></div>
       </section>
+
+      {(isMaker || isChecker || pendingRequests.length > 0) && (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 p-4 sm:px-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">User addition requests</h2>
+                <p className="mt-1 text-[10px] text-slate-500">{pendingRequests.length} pending {pendingRequests.length === 1 ? 'request' : 'requests'}</p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700"><Clock3 className="h-3 w-3" /> Maker-checker</span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left">
+              <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">Requested user</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Requested by</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead>
+              <tbody>
+                {userAdditionRequests.map((request) => (
+                  <tr key={request.id} className="border-t border-slate-100 hover:bg-slate-50/70">
+                    <td className="px-5 py-3.5"><p className="text-xs font-semibold text-slate-800">{request.name}</p><p className="mt-0.5 text-[10px] text-slate-400">{request.email} · {request.department}</p></td>
+                    <td className="whitespace-nowrap px-4 py-3.5"><RoleBadge role={request.role} /></td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{request.requestedBy}</td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{request.requestedAt}</td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold ${request.decisionStatus === 'Pending' ? 'bg-amber-50 text-amber-700' : request.decisionStatus === 'Approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${request.decisionStatus === 'Pending' ? 'bg-amber-500' : request.decisionStatus === 'Approved' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        {request.decisionStatus}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                      {isChecker && request.decisionStatus === 'Pending' ? (
+                        <div className="inline-flex items-center gap-1.5">
+                          <button type="button" onClick={() => approveUserAddition(request.id, currentUser.name)} className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-50 px-2.5 text-[10px] font-semibold text-brand-700 hover:bg-brand-100"><Check className="h-3.5 w-3.5" /><span className="hidden sm:inline">Approve</span></button>
+                          <button type="button" onClick={() => rejectUserAddition(request.id, currentUser.name)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-700"><RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Reject</span></button>
+                        </div>
+                      ) : request.decidedBy ? (
+                        <span className="text-[10px] text-slate-400">{request.decidedBy}</span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400">Awaiting checker</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {userAdditionRequests.length === 0 && <tr><td colSpan={6} className="px-6 py-10 text-center text-xs text-slate-500">No user addition requests yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex flex-col justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:px-5">
@@ -266,7 +322,7 @@ export default function UserManagementPage() {
         <Pagination currentPage={page} totalPages={pageCount} onPageChange={setPage} />
       </section>
 
-      <UserFormModal key={editing?.id ?? 'new'} open={formOpen} onClose={() => { setFormOpen(false); setEditing(null) }} editing={editing} onSubmit={submitUser} />
+      <UserFormModal key={editing?.id ?? 'new'} open={formOpen} onClose={() => { setFormOpen(false); setEditing(null) }} editing={editing} submitForApproval={isMaker && !editing} onSubmit={submitUser} />
 
       <Modal open={Boolean(selected)} onClose={() => setSelected(null)} label={selected?.name ?? 'User details'}>
         {selected && (

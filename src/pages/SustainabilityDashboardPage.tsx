@@ -236,9 +236,11 @@ export default function SustainabilityDashboardPage() {
               <Link to="/operations" aria-label="View operations data" className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-brand-600 shadow-sm hover:text-brand-800"><ArrowRight className="h-4 w-4" /></Link>
             )}
           </div>
-          <div className="mt-auto pt-5">
-            <Link to="/settings" className="flex items-center gap-2 text-[10px] font-semibold text-slate-500 hover:text-brand-600"><Target className="h-3.5 w-3.5" /> Review factors & target configuration <ArrowRight className="ml-auto h-3 w-3" /></Link>
-          </div>
+          {isAdmin && (
+            <div className="mt-auto pt-5">
+              <Link to="/settings" className="flex items-center gap-2 text-[10px] font-semibold text-slate-500 hover:text-brand-600"><Target className="h-3.5 w-3.5" /> Review factors & target configuration <ArrowRight className="ml-auto h-3 w-3" /></Link>
+            </div>
+          )}
         </div>
       </section>
 

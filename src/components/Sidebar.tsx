@@ -1,6 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
 import {
-  Activity,
   BarChart3,
   BriefcaseBusiness,
   ClipboardList,
@@ -23,6 +22,7 @@ type NavigationItem = {
   icon: typeof LayoutDashboard
   adminOnly?: boolean
   hiddenForAdmin?: boolean
+  hidden?: boolean
 }
 
 const navigationGroups: { label: string; items: NavigationItem[] }[] = [
@@ -45,7 +45,7 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     items: [
       { to: '/submissions', label: 'Submissions & reviews', icon: ClipboardList, hiddenForAdmin: true },
       { to: '/reports', label: 'Reports & analytics', icon: BarChart3 },
-      { to: '/settings', label: 'Configuration', icon: Settings2 },
+      { to: '/settings', label: 'Configuration', icon: Settings2, hidden: true },
       { to: '/users', label: 'User management', icon: UserCog, adminOnly: true },
     ],
   },
@@ -76,15 +76,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         <div className="border-b border-slate-100 px-6 py-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Access Holdings</p>
           <p className="mt-1 text-[17px] font-bold tracking-tight text-brand-900">Sustainability portal</p>
-          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
-            <Activity className="h-3 w-3" />
-            Demo workspace
-          </span>
         </div>
 
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-5">
           {navigationGroups.map((group) => {
-            const items = group.items.filter((item) => (!item.adminOnly || isAdmin) && (!item.hiddenForAdmin || !isAdmin))
+            const items = group.items.filter((item) => !item.hidden && (!item.adminOnly || isAdmin) && (!item.hiddenForAdmin || !isAdmin))
             if (items.length === 0) return null
             return (
             <div key={group.label} className="mb-6 last:mb-0">

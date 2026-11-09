@@ -23,6 +23,12 @@ function AdminRestrictedRoute({ children }: { children: ReactElement }) {
   return children
 }
 
+function AdminOnlyRoute({ children }: { children: ReactElement }) {
+  const { currentUser } = useCurrentUser()
+  if (!canManageUsers(currentUser.role)) return <Navigate to="/dashboard" replace />
+  return children
+}
+
 function App() {
   return (
     <Routes>
@@ -34,7 +40,7 @@ function App() {
         ))}
         <Route path="/submissions" element={<AdminRestrictedRoute><SubmissionsPage /></AdminRestrictedRoute>} />
         <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<AdminOnlyRoute><SettingsPage /></AdminOnlyRoute>} />
         <Route path="/users" element={<UserManagementPage />} />
         <Route path="/login" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
