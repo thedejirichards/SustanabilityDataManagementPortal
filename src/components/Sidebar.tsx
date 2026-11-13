@@ -12,7 +12,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react'
-import accessLogo from '../assets/brand/access-logo.svg'
+import accessLogo from '../assets/brand/access-masterbrand.svg'
 import { canManageUsers } from '../data/users'
 import { useCurrentUser } from '../context/useCurrentUser'
 
@@ -66,7 +66,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       <aside className={`${mobileOpen ? 'flex' : 'hidden'} fixed inset-y-0 left-0 z-40 w-[272px] shrink-0 flex-col border-r border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen`}>
         <div className="flex h-[76px] items-center justify-between border-b border-slate-100 px-6">
           <Link to="/dashboard" aria-label="Access Holdings Sustainability home" className="flex items-center">
-            <img src={accessLogo} alt="Access Holdings" className="h-[23px] w-auto" />
+            <img src={accessLogo} alt="Access Masterbrand" className="h-[28px] w-auto" />
           </Link>
           <button type="button" aria-label="Close navigation" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 lg:hidden">
             <X className="h-4 w-4" />

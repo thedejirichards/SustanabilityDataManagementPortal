@@ -13,6 +13,14 @@ export type PillarKey = 'operations' | 'finance' | 'csi' | 'volunteering' | 'adv
 export type RecordStatus = 'Submitted' | 'Approved' | 'Rejected'
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file' | 'multi-text'
 
+export interface EvidenceAttachment {
+  id: string
+  name: string
+  type: string
+  size: number
+  file: File
+}
+
 export interface SustainabilityRecord {
   id: string
   pillar: PillarKey
@@ -27,6 +35,11 @@ export interface SustainabilityRecord {
   submittedBy: string
   submittedAt: string
   values: Record<string, string>
+  attachments?: EvidenceAttachment[]
+  reviewedBy?: string
+  reviewedAt?: string
+  reviewFeedback?: string
+  reviewChecks?: string[]
 }
 
 export interface FormField {
@@ -64,7 +77,26 @@ export const periods = [
   { value: '2026-06', label: 'June 2026' },
 ]
 
-export const countries = ['Nigeria', 'Ghana', 'Kenya', 'Rwanda', 'Zambia']
+// Access Group markets represented in this workspace. Keep this list aligned with the
+// current Group operating footprint as the business expands or restructures.
+export const countries = [
+  'Angola',
+  'Botswana',
+  'Cameroon',
+  'Democratic Republic of the Congo',
+  'Gambia',
+  'Ghana',
+  'Guinea',
+  'Kenya',
+  'Mozambique',
+  'Nigeria',
+  'Rwanda',
+  'Sierra Leone',
+  'South Africa',
+  'Tanzania',
+  'United Kingdom',
+  'Zambia',
+]
 export const subsidiaries = ['Access Bank', 'Access Pensions', 'Access Insurance', 'Access Holdings']
 export const businessUnits = ['Group Operations', 'Retail Banking', 'Corporate Banking', 'People & Culture', 'Sustainability']
 export const focusAreas = ['Education', 'Health', 'Entrepreneurship', 'Environment']
@@ -104,19 +136,27 @@ export const pillars: PillarDefinition[] = [
     title: 'Sustainable Operations',
     shortTitle: 'Operations',
     path: '/operations',
-    description: 'Capture energy, fuel and business travel consumption across the Group.',
+    description: 'Capture operational resource use, waste, travel and supplier activity across the Group.',
     icon: Leaf,
     formTitle: 'Add an operations record',
-    formDescription: 'Enter the source consumption and its original unit. Emissions are unavailable until approved factors are connected.',
-    categoryLabel: 'Consumption type',
-    categories: ['Diesel', 'Petrol', 'Electricity', 'Air travel', 'Uber', 'Bolt'],
+    formDescription: 'Report the operational KPI, source activity, target and actual values. Emissions are not inferred from activity data.',
+    categoryLabel: 'Operational KPI',
+    categories: ['Diesel', 'Petrol', 'Natural gas', 'Electricity', 'Renewable electricity', 'Water consumption', 'Waste generated', 'Waste recycled', 'Paper usage', 'Air travel', 'Ground transport', 'Employee commuting', 'Supplier sustainability training', 'Solar-powered ATMs'],
     fields: [
       ...reportingFields,
-      { name: 'category', label: 'Consumption type', type: 'select', required: true, options: ['Diesel', 'Petrol', 'Electricity', 'Air travel', 'Uber', 'Bolt', 'Waste Recycling locations', "Solar powered ATMs", 'Training for Suppliers and vendors'] },
-      { name: 'consumptionValue', label: 'Consumption value', type: 'number', required: true, min: 0, step: 0.01 },
+      { name: 'category', label: 'Operational KPI', type: 'select', required: true, options: ['Diesel', 'Petrol', 'Natural gas', 'Electricity', 'Renewable electricity', 'Water consumption', 'Waste generated', 'Waste recycled', 'Paper usage', 'Air travel', 'Ground transport', 'Employee commuting', 'Supplier sustainability training', 'Solar-powered ATMs'] },
+      { name: 'scope', label: 'GHG scope / classification', type: 'select', options: ['Scope 1', 'Scope 2', 'Scope 3', 'Non-GHG operational KPI', 'To be validated'] },
+      { name: 'facilityOrAsset', label: 'Facility / asset / activity', type: 'text', required: true, hint: 'Branch, office, vehicle fleet, ATM network or other reporting boundary.' },
+      { name: 'consumptionValue', label: 'Actual activity / consumption', type: 'number', required: true, min: 0, step: 0.01 },
       { name: 'unit', label: 'Source unit', type: 'text', required: true, hint: 'Use the unit shown in the source record; do not convert.' },
+      { name: 'targetValue', label: 'Target for this period', type: 'number', min: 0, step: 0.01 },
+      { name: 'targetUnit', label: 'Target unit', type: 'text', hint: 'Use the same unit as the reported actual value.' },
+      { name: 'baselineValue', label: 'Baseline value', type: 'number', min: 0, step: 0.01 },
+      { name: 'baselinePeriod', label: 'Baseline period', type: 'text', hint: 'For example, FY2024 or 2024-12.' },
+      { name: 'spend', label: 'Related spend', type: 'number', min: 0, step: 0.01 },
+      { name: 'currency', label: 'Spend currency', type: 'text', hint: 'Currency code, if spend is reported.' },
+      { name: 'supplier', label: 'Supplier / service provider', type: 'text' },
       { name: 'sourceReference', label: 'Source reference', type: 'text', hint: 'Invoice, meter, travel log or other evidence reference.' },
-      { name: 'evidence', label: 'Supporting evidence', type: 'file', hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
   {
@@ -127,7 +167,7 @@ export const pillars: PillarDefinition[] = [
     description: 'Record sustainable lending, MSME finance and development fund utilization.',
     icon: BriefcaseBusiness,
     formTitle: 'Add a finance record',
-    formDescription: 'Capture the financing activity and its intended beneficiaries.',
+    formDescription: 'Capture financing classification, committed and disbursed amounts, beneficiary results and impact targets.',
     categoryLabel: 'Finance activity',
     categories: ['Green loans', 'Social loans', 'MSMEs onboarded', 'MSMEs financed', 'Low-income individuals financed', 'Nano-loans', 'DFI funds received', 'DFI funds utilization'],
     fields: [
@@ -137,17 +177,26 @@ export const pillars: PillarDefinition[] = [
       { name: 'businessFunction', label: 'Business function', type: 'text', required: true },
       { name: 'productType', label: 'Product type', type: 'text', required: true },
       { name: 'useOfFunds', label: 'Use of funds', type: 'textarea', required: true, fullWidth: true },
+      { name: 'sustainableFinanceClassification', label: 'Sustainable finance classification', type: 'select', required: true, options: ['Green', 'Social', 'Sustainability-linked', 'Development finance', 'Other / pending classification'] },
       { name: 'amountFinanced', label: 'Amount financed', type: 'number', required: true, min: 0, step: 0.01 },
+      { name: 'amountCommitted', label: 'Amount committed', type: 'number', min: 0, step: 0.01 },
+      { name: 'amountDisbursed', label: 'Amount disbursed', type: 'number', min: 0, step: 0.01 },
+      { name: 'outstandingBalance', label: 'Outstanding balance', type: 'number', min: 0, step: 0.01 },
       { name: 'currency', label: 'Currency', type: 'text', required: true, hint: 'Use the currency code in the source record (for example, NGN).' },
+      { name: 'facilityCount', label: 'Number of facilities / accounts', type: 'number', min: 0, step: 1 },
       { name: 'beneficiaries', label: 'Beneficiaries / businesses', type: 'number', min: 0, step: 1 },
+      { name: 'womenBeneficiaries', label: 'Women-owned / women beneficiaries', type: 'number', min: 0, step: 1 },
+      { name: 'youthBeneficiaries', label: 'Youth beneficiaries', type: 'number', min: 0, step: 1 },
       { name: 'msmesOnboarded', label: 'MSMEs onboarded', type: 'number', min: 0, step: 1 },
       { name: 'msmesFinanced', label: 'MSMEs financed', type: 'number', min: 0, step: 1 },
       { name: 'lowIncomeIndividualsFinanced', label: 'Low-income individuals financed', type: 'number', min: 0, step: 1 },
       { name: 'nanoLoans', label: 'Nano-loans issued', type: 'number', min: 0, step: 1 },
       { name: 'dfiFundsReceived', label: 'DFI funds received', type: 'number', min: 0, step: 0.01 },
       { name: 'dfiFundsUtilized', label: 'DFI funds utilized', type: 'number', min: 0, step: 0.01 },
+      { name: 'jobsCreated', label: 'Jobs created / supported', type: 'number', min: 0, step: 1 },
+      { name: 'targetBeneficiaries', label: 'Target beneficiaries', type: 'number', min: 0, step: 1 },
+      { name: 'outcomeMeasure', label: 'Outcome / impact measure', type: 'textarea', fullWidth: true, hint: 'Describe the intended outcome and how it is measured.' },
       { name: 'sdgs', label: 'Relevant SDGs', type: 'text', hint: 'List applicable SDG numbers or names.' },
-      { name: 'evidence', label: 'Supporting evidence', type: 'file', hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
   {
@@ -158,7 +207,7 @@ export const pillars: PillarDefinition[] = [
     description: 'Manage community initiatives, investments and supporting evidence.',
     icon: HeartHandshake,
     formTitle: 'Add a CSI initiative',
-    formDescription: 'Record initiative details, location, partners, impact and supporting evidence.',
+    formDescription: 'Track investment, disbursement, delivery partners, target-versus-actual results and validated community outcomes.',
     categoryLabel: 'Focus area',
     categories: focusAreas,
     fields: [
@@ -167,14 +216,27 @@ export const pillars: PillarDefinition[] = [
       { name: 'name', label: 'Initiative name', type: 'text', required: true },
       { name: 'category', label: 'Focus area', type: 'select', required: true, options: focusAreas },
       { name: 'initiativeDetails', label: 'Initiative details', type: 'textarea', required: true, fullWidth: true },
-      { name: 'livesImpacted', label: 'Number of lives impacted', type: 'number', required: true, min: 0, step: 1 },
+      { name: 'projectStatus', label: 'Project status', type: 'select', required: true, options: ['Planned', 'Ongoing', 'Completed', 'On hold', 'Cancelled'] },
+      { name: 'budget', label: 'Approved project budget', type: 'number', min: 0, step: 0.01 },
+      { name: 'amountDisbursed', label: 'Amount disbursed to date', type: 'number', min: 0, step: 0.01 },
+      { name: 'amountSupported', label: 'Total investment / amount supported', type: 'number', min: 0, step: 0.01 },
+      { name: 'currency', label: 'Currency', type: 'text', hint: 'Enter the currency code for budget and disbursement values.' },
+      { name: 'targetBeneficiaries', label: 'Target beneficiaries', type: 'number', min: 0, step: 1 },
+      { name: 'livesImpacted', label: 'Actual beneficiaries reached', type: 'number', required: true, min: 0, step: 1 },
+      { name: 'womenBeneficiaries', label: 'Women beneficiaries reached', type: 'number', min: 0, step: 1 },
+      { name: 'youthBeneficiaries', label: 'Youth beneficiaries reached', type: 'number', min: 0, step: 1 },
       { name: 'populationSegment', label: 'Population segment', type: 'text', hint: 'Use the segment values approved for Group reporting.' },
       { name: 'implementationLocation', label: 'Implementation location', type: 'text', required: true },
       { name: 'implementingPartner', label: 'Implementing partner', type: 'text' },
-      { name: 'amountSupported', label: 'Amount supported', type: 'number', min: 0, step: 0.01 },
-      { name: 'currency', label: 'Currency', type: 'text', hint: 'Enter a currency code if an amount is provided.' },
+      { name: 'partnerType', label: 'Partner type', type: 'select', options: ['NGO / nonprofit', 'Government', 'Community organisation', 'Academic institution', 'Private sector', 'Internal delivery', 'Other'] },
+      { name: 'outcomeTarget', label: 'Target outcome / result', type: 'textarea', fullWidth: true },
+      { name: 'outcomeActual', label: 'Actual outcome / result', type: 'textarea', fullWidth: true },
+      { name: 'outcomeMeasure', label: 'Outcome indicator and unit', type: 'text', hint: 'For example, learners completing training; hectares restored.' },
+      { name: 'strategicAlignment', label: 'Strategic priority / SDG alignment', type: 'text' },
+      { name: 'impactValidationMethod', label: 'Impact validation method', type: 'select', options: ['Beneficiary survey', 'Partner report', 'Independent evaluation', 'Site visit', 'Administrative data', 'Other / pending validation'] },
+      { name: 'impactValidatedBy', label: 'Impact validated by', type: 'text' },
+      { name: 'impactValidationDate', label: 'Impact validation date', type: 'date' },
       { name: 'sdgs', label: 'Relevant SDGs', type: 'text', hint: 'List applicable SDG numbers or names.' },
-      { name: 'evidence', label: 'Supporting evidence', type: 'file', hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
   {
@@ -201,7 +263,6 @@ export const pillars: PillarDefinition[] = [
       { name: 'partners', label: 'Partners', type: 'text', required: true },
       { name: 'awards', label: 'Awards / recognitions', type: 'text', required: true },
       { name: 'sdgs', label: 'Relevant SDGs', type: 'text', required: true },
-      { name: 'evidence', label: 'Supporting evidence', type: 'file', required: true, hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
   {
@@ -227,9 +288,9 @@ export const pillars: PillarDefinition[] = [
       { name: 'eventDate', label: 'Date', type: 'date', required: true },
       { name: 'eventLocation', label: 'Location', type: 'text', required: true },
       { name: 'audienceCount', label: 'Number of addressed audience', type: 'number', required: true, min: 0, step: 1, showWhen: { field: 'category', equals: 'Speaking engagement' } },
-      { name: 'awardClass', label: 'Award classification', type: 'select', options: ['Local', 'International', 'Global awards', 'Not applicable'], showWhen: { field: 'category', equals: 'Award / recognition' } },
+      { name: 'awardClass', label: 'Award classification', type: 'select', required: true, options: ['Local', 'International', 'Global awards'], showWhen: { field: 'category', equals: 'Award / recognition' } },
+      { name: 'awardingBody', label: 'Awarding body', type: 'text', required: true, hint: 'Organisation or institution that conferred the award.', showWhen: { field: 'category', equals: 'Award / recognition' } },
       { name: 'details', label: 'Details', type: 'textarea', fullWidth: true },
-      { name: 'evidence', label: 'Supporting evidence', type: 'file', hint: 'Demonstration only: files are not uploaded to a server.' },
     ],
   },
 ]
@@ -259,7 +320,7 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { category: 'Electricity', consumptionValue: '8,460', unit: 'kWh', sourceReference: 'DEMO-MTR-1038', evidence: '' },
   },
   {
-    id: 'SDM-OPS-1027', pillar: 'operations', name: 'Regional travel · Air', category: 'Air travel', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Accra', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-02',
+    id: 'SDM-OPS-1027', pillar: 'operations', name: 'Regional travel · Air', category: 'Air travel', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Accra', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-02', reviewedBy: 'Tunde Bakare', reviewedAt: '2026-10-05T10:30:00.000Z', reviewChecks: ['Required reporting fields are complete', 'Reported values are consistent with the reporting period and units', 'Source evidence has been reviewed or marked not applicable'],
     values: { category: 'Air travel', consumptionValue: '14', unit: 'trips', sourceReference: 'DEMO-TRV-1027', evidence: '' },
   },
   {
@@ -271,7 +332,7 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { category: 'Social loans', businessFunction: 'Retail Banking', productType: 'Social impact facility', useOfFunds: 'Illustrative funding for community health services.', amountFinanced: '18,500,000', currency: 'KES', beneficiaries: '6', sdgs: '3, 10', evidence: '' },
   },
   {
-    id: 'SDM-FIN-0796', pillar: 'finance', name: 'DFI facility utilization', category: 'DFI funds', period: '2026-08', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Lagos', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-09-06',
+    id: 'SDM-FIN-0796', pillar: 'finance', name: 'DFI facility utilization', category: 'DFI funds', period: '2026-08', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Lagos', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-09-06', reviewedBy: 'Tunde Bakare', reviewedAt: '2026-09-09T13:15:00.000Z', reviewChecks: ['Required reporting fields are complete', 'Reported values are consistent with the reporting period and units', 'Source evidence has been reviewed or marked not applicable'],
     values: { category: 'DFI funds', businessFunction: 'Corporate Banking', productType: 'Development finance', useOfFunds: 'Illustrative utilization record.', amountFinanced: '120,000,000', currency: 'NGN', beneficiaries: '42', sdgs: '8, 9', evidence: '' },
   },
   {
@@ -279,19 +340,19 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { initiativeDetails: 'Illustrative community learning and digital literacy programme.', livesImpacted: '320', populationSegment: 'Secondary school students', implementationLocation: 'Ikeja, Lagos', implementingPartner: 'Demo Community Foundation', amountSupported: '12,000,000', currency: 'NGN', sdgs: '4, 10', evidence: '' },
   },
   {
-    id: 'SDM-CSI-0407', pillar: 'csi', name: 'Community Health Outreach', category: 'Health', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Kumasi', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-01',
+    id: 'SDM-CSI-0407', pillar: 'csi', name: 'Community Health Outreach', category: 'Health', period: '2026-09', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Kumasi', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-01', reviewedBy: 'Tunde Bakare', reviewedAt: '2026-10-03T09:00:00.000Z', reviewChecks: ['Required reporting fields are complete', 'Reported values are consistent with the reporting period and units', 'Source evidence has been reviewed or marked not applicable'],
     values: { initiativeDetails: 'Illustrative preventive health outreach.', livesImpacted: '190', populationSegment: 'Community residents', implementationLocation: 'Kumasi', implementingPartner: 'Demo Health Partners', amountSupported: '4,500,000', currency: 'GHS', sdgs: '3, 10', evidence: '' },
   },
   {
-    id: 'SDM-CSI-0399', pillar: 'csi', name: 'Green Neighbourhoods', category: 'Environment', period: '2026-08', country: 'Kenya', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Nairobi', status: 'Rejected', submittedBy: 'Amara Okafor', submittedAt: '2026-09-05',
+    id: 'SDM-CSI-0399', pillar: 'csi', name: 'Green Neighbourhoods', category: 'Environment', period: '2026-08', country: 'Kenya', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Nairobi', status: 'Rejected', submittedBy: 'Amara Okafor', submittedAt: '2026-09-05', reviewedBy: 'Tunde Bakare', reviewedAt: '2026-09-08T14:10:00.000Z', reviewFeedback: 'Add evidence of the number of trees planted and a verified beneficiary count before resubmitting.',
     values: { initiativeDetails: 'Illustrative urban greening activity.', livesImpacted: '85', populationSegment: 'Urban communities', implementationLocation: 'Nairobi', implementingPartner: 'Demo Green Network', amountSupported: '2,200,000', currency: 'KES', sdgs: '11, 13', evidence: '' },
   },
   {
-    id: 'SDM-VOL-0208', pillar: 'volunteering', name: 'Skills for Small Business', category: 'Entrepreneurship', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Lagos', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-18',
+    id: 'SDM-VOL-0208', pillar: 'volunteering', name: 'Skills for Small Business', category: 'Entrepreneurship', period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Lagos', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-18', reviewedBy: 'Tunde Bakare', reviewedAt: '2026-10-20T08:45:00.000Z', reviewChecks: ['Required reporting fields are complete', 'Reported values are consistent with the reporting period and units', 'Source evidence has been reviewed or marked not applicable'],
     values: { volunteeringGroup: 'Access Volunteers Lagos', participatingStaff: '34', volunteeringHours: '102', cashContribution: '250,000', currency: 'NGN', beneficiaries: '74', partners: 'Demo Enterprise Network', awards: '', sdgs: '8, 10', evidence: '' },
   },
   {
-    id: 'SDM-VOL-0201', pillar: 'volunteering', name: 'Books & Brighter Futures', category: 'Education', period: '2026-09', country: 'Rwanda', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Kigali', status: 'Rejected', submittedBy: 'Amara Okafor', submittedAt: '2026-10-03',
+    id: 'SDM-VOL-0201', pillar: 'volunteering', name: 'Books & Brighter Futures', category: 'Education', period: '2026-09', country: 'Rwanda', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Kigali', status: 'Rejected', submittedBy: 'Amara Okafor', submittedAt: '2026-10-03', reviewedBy: 'Tunde Bakare', reviewedAt: '2026-10-06T11:20:00.000Z', reviewFeedback: 'Confirm the beneficiary headcount and attach the partner activity summary before resubmitting.',
     values: { volunteeringGroup: 'Access Volunteers Kigali', participatingStaff: '16', volunteeringHours: '48', cashContribution: '0', currency: 'RWF', beneficiaries: '58', partners: 'Demo Learning Trust', awards: '', sdgs: '4, 10', evidence: '' },
   },
   {
@@ -303,12 +364,12 @@ export const demoRecords: SustainabilityRecord[] = [
     values: { staffInvolved: 'Group Sustainability Lead', eventDate: '2026-10-14', eventLocation: 'Lagos', awardClass: 'Not applicable', details: 'Illustrative participation in a regional forum.', evidence: '' },
   },
   {
-    id: 'SDM-ADV-0109', pillar: 'advocacy', name: 'Sustainable Banking Working Group', category: 'Working group', period: '2026-09', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Sustainability', location: 'Abuja', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-01',
+    id: 'SDM-ADV-0109', pillar: 'advocacy', name: 'Sustainable Banking Working Group', category: 'Working group', period: '2026-09', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Sustainability', location: 'Abuja', status: 'Approved', submittedBy: 'Amara Okafor', submittedAt: '2026-10-01', reviewedBy: 'Tunde Bakare', reviewedAt: '2026-10-04T16:00:00.000Z', reviewChecks: ['Required reporting fields are complete', 'Reported values are consistent with the reporting period and units', 'Source evidence has been reviewed or marked not applicable'],
     values: { staffInvolved: 'Executive Director, Risk', eventDate: '2026-09-23', eventLocation: 'Abuja', awardClass: 'Not applicable', details: 'Illustrative working group participation.', evidence: '' },
   },
   {
     id: 'SDM-ADV-0101', pillar: 'advocacy', name: 'Responsible Business Recognition', category: 'Award / recognition', period: '2026-08', country: 'Kenya', subsidiary: 'Access Bank', businessUnit: 'Sustainability', location: 'Nairobi', status: 'Submitted', submittedBy: 'Amara Okafor', submittedAt: '2026-09-02',
-    values: { staffInvolved: 'Regional Managing Director', eventDate: '2026-08-18', eventLocation: 'Nairobi', awardClass: 'International', details: 'Illustrative recognition record.', evidence: '' },
+    values: { staffInvolved: 'Regional Managing Director', eventDate: '2026-08-18', eventLocation: 'Nairobi', awardClass: 'International', awardingBody: 'Illustrative Business Council', details: 'Illustrative recognition record.' },
   },
 ]
 

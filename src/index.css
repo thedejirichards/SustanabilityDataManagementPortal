@@ -38,6 +38,115 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+/* Small utility labels were difficult to read at the original demo scale. */
+[class~="text-[9px]"] {
+  font-size: 0.6875rem !important;
+}
+
+[class~="text-[10px]"] {
+  font-size: 0.75rem !important;
+}
+
+[class~="text-[11px]"] {
+  font-size: 0.8125rem !important;
+}
+
+.app-dark {
+  background-color: #0b1220;
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+
+.app-dark [class~="bg-white"] {
+  background-color: #111c2e !important;
+}
+
+.app-dark [class~="bg-slate-50"],
+.app-dark [class~="bg-slate-50/50"],
+.app-dark [class~="bg-slate-50/60"],
+.app-dark [class~="bg-slate-50/70"] {
+  background-color: #172337 !important;
+}
+
+.app-dark [class~="bg-slate-100"] {
+  background-color: #26364d !important;
+}
+
+.app-dark [class~="bg-brand-50"],
+.app-dark [class~="bg-brand-50/50"],
+.app-dark [class~="bg-brand-50/60"],
+.app-dark [class~="bg-brand-50/70"] {
+  background-color: #142b48 !important;
+}
+
+.app-dark [class~="bg-emerald-50"] {
+  background-color: #123329 !important;
+}
+
+.app-dark [class~="bg-rose-50"] {
+  background-color: #3b202b !important;
+}
+
+.app-dark [class~="bg-amber-50"] {
+  background-color: #392c16 !important;
+}
+
+.app-dark [class~="text-slate-900"] {
+  color: #f8fafc !important;
+}
+
+.app-dark [class~="text-slate-800"] {
+  color: #e2e8f0 !important;
+}
+
+.app-dark [class~="text-slate-700"],
+.app-dark [class~="text-slate-600"] {
+  color: #cbd5e1 !important;
+}
+
+.app-dark [class~="text-slate-500"] {
+  color: #a7b4c8 !important;
+}
+
+.app-dark [class~="text-slate-400"] {
+  color: #8190a7 !important;
+}
+
+.app-dark [class~="text-brand-900"] {
+  color: #dbeafe !important;
+}
+
+.app-dark [class~="text-brand-800"] {
+  color: #bfdbfe !important;
+}
+
+.app-dark [class~="text-brand-700"] {
+  color: #93c5fd !important;
+}
+
+.app-dark [class~="text-brand-600"] {
+  color: #60a5fa !important;
+}
+
+.app-dark [class~="border-slate-100"],
+.app-dark [class~="border-slate-200"],
+.app-dark [class~="border-slate-300"] {
+  border-color: #2c3b50 !important;
+}
+
+.app-dark input,
+.app-dark select,
+.app-dark textarea {
+  background-color: #111c2e;
+  color: #e2e8f0;
+  border-color: #34445c;
+}
+
+.app-dark input::placeholder,
+.app-dark textarea::placeholder {
+  color: #8190a7;
+}
+
 ::selection {
   background: #d9e1ed;
   color: #00224f;

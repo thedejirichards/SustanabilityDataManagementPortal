@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Check, ClipboardCheck, Eye, RotateCcw, Search } from 'lucide-react'
+import { ClipboardCheck, Eye, Search } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
@@ -7,6 +7,8 @@ import StatusBadge from '../components/StatusBadge'
 import { canReview, formatPeriod, pillarByKey, pillars, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
+import EvidenceFiles from '../components/EvidenceFiles'
+import ReviewDecisionPanel from '../components/ReviewDecisionPanel'
 
 const PAGE_SIZE = 5
 const statuses: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
@@ -22,7 +24,7 @@ export default function SubmissionsPage() {
   const canAct = canReview(currentUser.role)
 
   const filteredRecords = useMemo(() => records.filter((record) => {
-    const query = `${record.id} ${record.name} ${record.country} ${record.submittedBy} ${record.category}`.toLowerCase()
+    const query = `${record.id} ${record.name} ${record.country} ${record.location} ${record.submittedBy} ${record.reviewedBy ?? ''} ${record.category}`.toLowerCase()
     return (status === 'all' || record.status === status)
       && (pillar === 'all' || record.pillar === pillar)
       && query.includes(search.trim().toLowerCase())
@@ -33,9 +35,9 @@ export default function SubmissionsPage() {
   const rejectedCount = records.filter((record) => record.status === 'Rejected').length
   const approvedCount = records.filter((record) => record.status === 'Approved').length
 
-  function changeStatus(record: SustainabilityRecord, next: RecordStatus) {
-    updateStatus(record.id, next)
-    setSelected((current) => current?.id === record.id ? { ...current, status: next } : current)
+  function changeStatus(record: SustainabilityRecord, next: RecordStatus, feedback: string, checks: string[]) {
+    updateStatus(record.id, next, currentUser.name, feedback, checks)
+    setSelected((current) => current?.id === record.id ? { ...current, status: next, reviewedBy: currentUser.name, reviewedAt: new Date().toISOString(), reviewFeedback: feedback, reviewChecks: checks } : current)
   }
 
   return (
@@ -48,7 +50,7 @@ export default function SubmissionsPage() {
 
       <div className="flex items-start gap-3 rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3.5">
         <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-        <p className="text-xs leading-5 text-brand-900"><span className="font-bold">Workflow demonstration.</span> Review actions update the current browser session only. Production role permissions, evidence controls, audit history and routing require server-side authorization and workflow services.</p>
+        <p className="text-xs leading-5 text-brand-900"><span className="font-bold">Review workflow.</span> Designated reviewers validate each metric and its source documents before approval. Rejections require branch-facing feedback; decisions are attributed to the reviewer and notify the submitting branch in this session.</p>
       </div>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -70,29 +72,27 @@ export default function SubmissionsPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left">
-            <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">Record</th><th className="px-4 py-3">Pillar</th><th className="px-4 py-3">Reporting period</th><th className="px-4 py-3">Submitted by</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead>
+          <table className="w-full min-w-[1180px] text-left">
+            <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">Record</th><th className="px-4 py-3">Pillar</th><th className="px-4 py-3">Reporting period</th><th className="px-4 py-3">Branch / location</th><th className="px-4 py-3">Submitted by</th><th className="px-4 py-3">Sustainability reviewer</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead>
             <tbody>
               {pageRecords.map((record) => (
                 <tr key={record.id} className="border-t border-slate-100 hover:bg-slate-50/70">
                   <td className="px-5 py-3.5"><p className="max-w-52 truncate text-xs font-semibold text-slate-800">{record.name}</p><p className="mt-0.5 text-[10px] text-slate-400">{record.id}</p></td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{pillarByKey[record.pillar].shortTitle}</td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{formatPeriod(record.period)}</td>
+                  <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{record.location || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{record.submittedBy}</td>
+                  <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{record.reviewedBy ?? '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{record.submittedAt}</td>
                   <td className="whitespace-nowrap px-4 py-3.5"><StatusBadge status={record.status} /></td>
                   <td className="whitespace-nowrap px-5 py-3.5 text-right">
                     <div className="inline-flex items-center gap-1.5">
                       <button type="button" onClick={() => setSelected(record)} aria-label={`View ${record.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600"><Eye className="h-4 w-4" /></button>
-                      {canAct && record.status === 'Submitted' && <>
-                        <button type="button" onClick={() => changeStatus(record, 'Approved')} title="Approve" className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-50 px-2.5 text-[10px] font-semibold text-brand-700 hover:bg-brand-100"><Check className="h-3.5 w-3.5" /><span className="hidden sm:inline">Approve</span></button>
-                        <button type="button" onClick={() => changeStatus(record, 'Rejected')} title="Reject" className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-700"><RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Reject</span></button>
-                      </>}
                     </div>
                   </td>
                 </tr>
               ))}
-              {pageRecords.length === 0 && <tr><td colSpan={7} className="px-6 py-14 text-center text-xs text-slate-500">No submissions match the selected filters.</td></tr>}
+              {pageRecords.length === 0 && <tr><td colSpan={9} className="px-6 py-14 text-center text-xs text-slate-500">No submissions match the selected filters.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -104,11 +104,16 @@ export default function SubmissionsPage() {
           <p className="text-[10px] font-bold uppercase tracking-wide text-brand-600">{pillarByKey[selected.pillar].shortTitle} · {selected.id}</p>
           <h2 className="mt-1 text-xl font-bold text-slate-900">{selected.name}</h2>
           <div className="mt-3"><StatusBadge status={selected.status} /></div>
-          <dl className="mt-5 grid grid-cols-2 gap-3">
-            {[['Reporting period', formatPeriod(selected.period)], ['Country', selected.country], ['Subsidiary', selected.subsidiary], ['Business unit', selected.businessUnit], ['Location', selected.location], ['Submitted by', selected.submittedBy], ...Object.entries(selected.values).filter(([, value]) => value).map(([key, value]) => [key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`), value])].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 px-3 py-2.5"><dt className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</dt><dd className="mt-1 break-words text-xs font-medium text-slate-700">{value}</dd></div>)}
+          <dl className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {[
+              ['Reporting period', formatPeriod(selected.period)], ['Country', selected.country], ['Subsidiary', selected.subsidiary], ['Business unit', selected.businessUnit], ['Branch / location', selected.location], ['Submitted by', selected.submittedBy], ['Sustainability reviewer', selected.reviewedBy ?? 'Not reviewed'], ['Review date', selected.reviewedAt ? new Date(selected.reviewedAt).toLocaleString() : '—'],
+              ...Object.entries(selected.values).filter(([, value]) => value).map(([key, value]) => [key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`), value]),
+            ].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 px-3 py-2.5"><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 break-words text-sm font-medium text-slate-700">{value}</dd></div>)}
           </dl>
-          {canAct && selected.status === 'Submitted' && <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => changeStatus(selected, 'Rejected')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-700"><RotateCcw className="h-3.5 w-3.5" /> Reject</button><button type="button" onClick={() => changeStatus(selected, 'Approved')} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-brand-700"><Check className="h-3.5 w-3.5" /> Approve</button></div>}
-          <p className="mt-4 text-[10px] leading-4 text-slate-400">Demo review actions update this session only; audit history and server-side access controls are not connected.</p>
+          <EvidenceFiles attachments={selected.attachments} />
+          {selected.reviewFeedback && <div className={`mt-4 rounded-xl border px-3.5 py-3 ${selected.status === 'Rejected' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}><p className="text-xs font-bold">{selected.status === 'Rejected' ? 'Reviewer feedback for branch' : 'Review note'}</p><p className="mt-1 text-sm leading-5">{selected.reviewFeedback}</p></div>}
+          {canAct && selected.status === 'Submitted' && <ReviewDecisionPanel onDecision={(next, feedback, checks) => changeStatus(selected, next, feedback, checks)} />}
+          {selected.status !== 'Submitted' && <p className="mt-4 text-xs text-slate-500">Decision recorded by {selected.reviewedBy ?? 'reviewer'}{selected.reviewedAt ? ` on ${new Date(selected.reviewedAt).toLocaleString()}` : ''}.</p>}
         </div>}
       </Modal>
     </div>

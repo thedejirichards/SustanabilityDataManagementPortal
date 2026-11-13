@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -8,15 +8,30 @@ import { SustainabilityProvider } from '../context/SustainabilityProvider'
 
 export default function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      return window.localStorage.getItem('sdm.theme') === 'dark'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('sdm.theme', darkMode ? 'dark' : 'light')
+    } catch {
+      // Theme preference is optional; ignore storage failures.
+    }
+  }, [darkMode])
 
   return (
     <UsersProvider>
       <UserProvider>
         <SustainabilityProvider>
-        <div className="flex min-h-screen bg-slate-50 text-slate-900">
+        <div className={`app-shell flex min-h-screen bg-slate-50 text-slate-900 ${darkMode ? 'app-dark' : ''}`}>
           <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
           <div className="flex min-w-0 flex-1 flex-col">
-            <Header onMenuClick={() => setMobileNavOpen(true)} />
+            <Header onMenuClick={() => setMobileNavOpen(true)} darkMode={darkMode} onToggleDarkMode={() => setDarkMode((current) => !current)} />
             <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
               <div className="mx-auto w-full max-w-[1440px]">
                 <Outlet />

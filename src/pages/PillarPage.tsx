@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { ArrowRight, Check, CircleHelp, Eye, FilePlus2, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react'
+import { ArrowRight, CircleHelp, Eye, FilePlus2, Plus, Search, Trash2, X } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
@@ -7,6 +7,8 @@ import StatusBadge from '../components/StatusBadge'
 import { canReview, canSubmitRecords, formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
+import EvidenceFiles from '../components/EvidenceFiles'
+import ReviewDecisionPanel from '../components/ReviewDecisionPanel'
 
 const PAGE_SIZE = 5
 const statusOptions: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
@@ -29,6 +31,15 @@ function formatMultiText(value: string | undefined) {
   return parseMultiText(value).map((item) => item.trim()).filter(Boolean).join('; ')
 }
 
+function getOperationScope(record: SustainabilityRecord) {
+  const reportedScope = record.values.scope
+  if (reportedScope?.startsWith('Scope ')) return reportedScope
+  if (['Diesel', 'Petrol', 'Natural gas'].includes(record.category)) return 'Scope 1'
+  if (['Electricity', 'Renewable electricity'].includes(record.category)) return 'Scope 2'
+  if (['Air travel', 'Ground transport', 'Employee commuting', 'Uber', 'Bolt'].includes(record.category)) return 'Scope 3'
+  return 'Non-GHG KPI'
+}
+
 function isFieldVisible(field: FormField, values: Record<string, string>) {
   if (!field.showWhen) return true
   const current = values[field.showWhen.field] ?? ''
@@ -49,7 +60,7 @@ function renderCell(record: SustainabilityRecord, key: string) {
   if (key === 'category') return record.category
   if (key === 'status') return <StatusBadge status={record.status} />
   if (key === 'scope') {
-    const scope = record.category === 'Diesel' || record.category === 'Petrol' ? 'Scope 1' : record.category === 'Electricity' ? 'Scope 2' : 'Scope 3'
+    const scope = getOperationScope(record)
     return <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{scope}</span>
   }
   if (key === 'unitValue') {
@@ -122,6 +133,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
   const { currentUser } = useCurrentUser()
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [attachments, setAttachments] = useState<SustainabilityRecord['attachments']>([])
   const [saved, setSaved] = useState(false)
 
   function setValue(field: FormField, value: string) {
@@ -180,6 +192,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
       submittedBy: currentUser.name,
       submittedAt: new Date().toISOString().slice(0, 10),
       values: normalizedValues,
+      attachments,
     }
     addRecord(record)
     setSaved(true)
@@ -275,6 +288,28 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
             )
           })}
         </div>
+        <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5" aria-label="Supporting evidence upload">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Supporting evidence</h3>
+              <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">Attach source documents for this metric, including photos, videos, spreadsheets, PDFs and other relevant files. Reviewers can open the files alongside your submission.</p>
+            </div>
+            <label className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-brand-200 bg-white px-4 text-xs font-semibold text-brand-700 hover:bg-brand-50">
+              Add files
+              <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip" onChange={(event) => {
+                const files = Array.from(event.target.files ?? [])
+                setAttachments((current) => [...(current ?? []), ...files.map((file, index) => ({ id: `${Date.now()}-${index}-${file.name}`, name: file.name, type: file.type, size: file.size, file }))])
+                event.target.value = ''
+              }} className="sr-only" aria-label="Attach supporting files" />
+            </label>
+          </div>
+          {attachments && attachments.length > 0 && <ul className="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+            {attachments.map((attachment) => <li key={attachment.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <span className="min-w-0"><span className="block truncate text-xs font-semibold text-slate-700">{attachment.name}</span><span className="text-xs text-slate-500">{(attachment.size / 1024).toFixed(0)} KB</span></span>
+              <button type="button" onClick={() => setAttachments((current) => current?.filter((item) => item.id !== attachment.id))} className="rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-600" aria-label={`Remove ${attachment.name}`}><Trash2 className="h-4 w-4" /></button>
+            </li>)}
+          </ul>}
+        </section>
         <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-100 pt-4">
           <p className="text-[10px] text-slate-400">* Required fields · Demo data is held in memory only.</p>
           <div className="flex shrink-0 items-center gap-2">
@@ -287,7 +322,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
   )
 }
 
-function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: SustainabilityRecord; pillar: PillarDefinition; canAct: boolean; onStatusChange: (next: RecordStatus) => void }) {
+function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: SustainabilityRecord; pillar: PillarDefinition; canAct: boolean; onStatusChange: (next: RecordStatus, feedback: string, checks: string[]) => void }) {
   const common = [
     { label: 'Record ID', value: record.id },
     { label: 'Reporting period', value: formatPeriod(record.period) },
@@ -296,6 +331,8 @@ function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: Sus
     { label: 'Business unit', value: record.businessUnit },
     { label: 'Location', value: record.location },
     { label: 'Submitted by', value: record.submittedBy },
+    { label: 'Sustainability reviewer', value: record.reviewedBy ?? 'Not reviewed' },
+    { label: 'Reviewed on', value: record.reviewedAt ? new Date(record.reviewedAt).toLocaleString() : '—' },
   ]
   const fields = pillar.fields.filter((field) => !['period', 'country', 'subsidiary', 'businessUnit', 'location'].includes(field.name))
   return (
@@ -317,17 +354,14 @@ function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: Sus
             </div>
           ))}
         </dl>
-        {record.values.evidence && <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 px-3 py-2.5 text-[10px] text-brand-800">Evidence reference: {record.values.evidence}. Demo files are not stored or access-controlled.</div>}
+        <EvidenceFiles attachments={record.attachments} />
+        {record.reviewFeedback && <div className={`mt-4 rounded-xl border px-3.5 py-3 ${record.status === 'Rejected' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}><p className="text-xs font-bold">{record.status === 'Rejected' ? 'Reviewer feedback' : 'Review note'}</p><p className="mt-1 text-xs leading-5">{record.reviewFeedback}</p></div>}
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
         <p className="text-[10px] text-slate-400">Submitted {record.submittedAt} · Demonstration record</p>
-        {canAct && record.status === 'Submitted' && (
-          <div className="flex shrink-0 gap-2">
-            <button type="button" onClick={() => onStatusChange('Rejected')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Reject</button>
-            <button type="button" onClick={() => onStatusChange('Approved')} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-brand-700"><Check className="h-3.5 w-3.5" /> Approve</button>
-          </div>
-        )}
+        {!canAct && <p className="text-xs text-slate-500">Reviewer decision: {record.reviewedBy ?? 'Awaiting designated reviewer'}{record.reviewedAt ? ` · ${new Date(record.reviewedAt).toLocaleDateString()}` : ''}</p>}
       </div>
+      {canAct && record.status === 'Submitted' && <ReviewDecisionPanel onDecision={onStatusChange} />}
     </div>
   )
 }
@@ -360,9 +394,9 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
   const approvedCount = pillarRecords.filter((record) => record.status === 'Approved').length
   const pendingCount = pillarRecords.filter((record) => record.status === 'Submitted').length
   const operationScopeCounts = {
-    scope1: pillarRecords.filter((record) => record.category === 'Diesel' || record.category === 'Petrol').length,
-    scope2: pillarRecords.filter((record) => record.category === 'Electricity').length,
-    scope3: pillarRecords.filter((record) => ['Air travel', 'Uber', 'Bolt'].includes(record.category)).length,
+    scope1: pillarRecords.filter((record) => getOperationScope(record) === 'Scope 1').length,
+    scope2: pillarRecords.filter((record) => getOperationScope(record) === 'Scope 2').length,
+    scope3: pillarRecords.filter((record) => getOperationScope(record) === 'Scope 3').length,
   }
   const breakdowns = getBreakdowns(pillar, pillarRecords)
 
@@ -375,10 +409,10 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
     setFormOpen(false)
   }
 
-  function reviewRecord(next: RecordStatus) {
+  function applyReviewDecision(next: RecordStatus, feedback: string, checks: string[]) {
     if (!selectedRecord) return
-    updateStatus(selectedRecord.id, next)
-    setSelectedRecord((current) => current ? { ...current, status: next } : current)
+    updateStatus(selectedRecord.id, next, currentUser.name, feedback, checks)
+    setSelectedRecord((current) => current ? { ...current, status: next, reviewedBy: currentUser.name, reviewedAt: new Date().toISOString(), reviewFeedback: feedback, reviewChecks: checks } : current)
   }
 
   return (
@@ -416,9 +450,9 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
       {pillar.key === 'operations' && (
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Operational activity by emissions scope">
           {[
-            { name: 'Scope 1', sources: 'Diesel · Petrol', count: operationScopeCounts.scope1 },
-            { name: 'Scope 2', sources: 'Electricity', count: operationScopeCounts.scope2 },
-            { name: 'Scope 3', sources: 'Air travel · Uber · Bolt', count: operationScopeCounts.scope3 },
+            { name: 'Scope 1', sources: 'Diesel · Petrol · Natural gas', count: operationScopeCounts.scope1 },
+            { name: 'Scope 2', sources: 'Electricity · Renewable electricity', count: operationScopeCounts.scope2 },
+            { name: 'Scope 3', sources: 'Air travel · Ground transport · Employee commuting', count: operationScopeCounts.scope3 },
           ].map((scope) => <div key={scope.name} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-brand-600">{scope.name}</p><p className="mt-1 text-xs font-semibold text-slate-800">{scope.sources}</p></div><span className="rounded-lg bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700">{scope.count}</span></div><p className="mt-3 text-[10px] text-slate-400">Source records · emissions pending approved factors</p></div>)}
         </section>
       )}
@@ -477,7 +511,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
       </section>
 
       {canAddRecords && <Modal open={formOpen} onClose={closeForm} label={pillar.formTitle}><RecordForm pillar={pillar} onClose={closeForm} /></Modal>}
-      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} canAct={canReviewRecords} onStatusChange={reviewRecord} />}</Modal>
+      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} canAct={canReviewRecords} onStatusChange={applyReviewDecision} />}</Modal>
     </div>
   )
 }
