@@ -36,7 +36,7 @@ export default function ReportsPage() {
       return { pillar: pillarKey, title: pillars.find((item) => item.key === pillarKey)?.shortTitle ?? pillarKey, key, label: key }
     })
     const allMetricColumns = [...metricColumns, ...legacyColumns]
-    const headers = ['Record ID', 'Pillar', 'Record name', 'Category', 'Reporting period', 'Country', 'Subsidiary', 'Business unit', 'Location', 'Status', 'Submitted by', 'Submitted date', 'Sustainability reviewer', 'Reviewed date', 'Reviewer feedback', 'Supporting evidence files', ...allMetricColumns.map((column) => `${column.title}: ${column.label}`)]
+    const headers = ['Record ID', 'Pillar', 'Record name', 'Category', 'Reporting period', 'Country', 'Subsidiary', 'Business unit', 'Location', 'Status', 'Submitted by', 'Submitted date', 'Sustainability reviewer', 'Reviewed date', 'Reviewer feedback', 'Evidence verification stage', 'Verification updated by', 'Verification updated date', 'Verification reference', 'Supporting evidence files', ...allMetricColumns.map((column) => `${column.title}: ${column.label}`)]
     const rows = filteredRecords.map((record) => [
       record.id,
       pillars.find((item) => item.key === record.pillar)?.title ?? record.pillar,
@@ -53,6 +53,10 @@ export default function ReportsPage() {
       record.reviewedBy ?? '',
       record.reviewedAt ?? '',
       record.reviewFeedback ?? '',
+      record.verificationStage ?? (record.status === 'Submitted' ? 'Unverified' : 'Internal Review'),
+      record.verificationUpdatedBy ?? '',
+      record.verificationUpdatedAt ?? '',
+      record.verificationReference ?? '',
       record.attachments?.map((attachment) => attachment.name).join('; ') ?? '',
       ...allMetricColumns.map((column) => record.pillar === column.pillar ? record.values[column.key] ?? '' : ''),
     ])

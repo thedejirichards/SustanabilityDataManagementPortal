@@ -4,7 +4,7 @@ import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import StatusBadge from '../components/StatusBadge'
-import { canReview, canSubmitRecords, formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
+import { canReview, canSubmitRecords, formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord, type VerificationStage } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 import EvidenceFiles from '../components/EvidenceFiles'
@@ -69,7 +69,7 @@ function renderCell(record: SustainabilityRecord, key: string) {
     return value ? `${value} ${unit ?? ''}` : '—'
   }
   if (key === 'submittedBy') return record.submittedBy
-  if (key === 'impact') return record.values.livesImpacted ?? record.values.beneficiaries ?? record.values.participatingStaff ?? '—'
+  if (key === 'impact') return record.values.livesImpacted ?? record.values.participantsTotal ?? record.values.beneficiaries ?? record.values.participatingStaff ?? '—'
   return record.name
 }
 
@@ -77,7 +77,7 @@ function getColumns(pillar: PillarDefinition) {
   if (pillar.key === 'operations') return [{ key: 'name', label: 'Record' }, { key: 'category', label: 'Type' }, { key: 'scope', label: 'Scope' }, { key: 'unitValue', label: 'Source value' }, { key: 'location', label: 'Location' }, { key: 'period', label: 'Period' }, { key: 'status', label: 'Status' }]
   if (pillar.key === 'finance') return [{ key: 'name', label: 'Customer / activity' }, { key: 'category', label: 'Finance type' }, { key: 'country', label: 'Country' }, { key: 'period', label: 'Period' }, { key: 'status', label: 'Status' }]
   if (pillar.key === 'csi') return [{ key: 'name', label: 'Initiative' }, { key: 'category', label: 'Focus area' }, { key: 'location', label: 'Location' }, { key: 'impact', label: 'Lives impacted' }, { key: 'status', label: 'Status' }]
-  if (pillar.key === 'volunteering') return [{ key: 'name', label: 'Initiative' }, { key: 'category', label: 'Focus area' }, { key: 'country', label: 'Country' }, { key: 'impact', label: 'Participants' }, { key: 'status', label: 'Status' }]
+  if (pillar.key === 'volunteering') return [{ key: 'name', label: 'Activity' }, { key: 'category', label: 'Learning area' }, { key: 'country', label: 'Country' }, { key: 'impact', label: 'Participants' }, { key: 'status', label: 'Status' }]
   return [{ key: 'name', label: 'Engagement / recognition' }, { key: 'category', label: 'Type' }, { key: 'location', label: 'Location' }, { key: 'period', label: 'Period' }, { key: 'status', label: 'Status' }]
 }
 
@@ -101,8 +101,8 @@ function getBreakdowns(pillar: PillarDefinition, records: SustainabilityRecord[]
     { title: 'Community population segments', values: groupRecordCounts(records, (record) => record.values.populationSegment || 'Not captured') },
   ]
   if (pillar.key === 'volunteering') return [
-    { title: 'Initiatives by country', values: groupRecordCounts(records, (record) => record.country) },
-    { title: 'Initiatives by division', values: groupRecordCounts(records, (record) => record.businessUnit) },
+    { title: 'Capacity-building activities by country', values: groupRecordCounts(records, (record) => record.country) },
+    { title: 'Activities by division', values: groupRecordCounts(records, (record) => record.businessUnit) },
   ]
   if (pillar.key === 'advocacy') return [
     { title: 'Engagements by type', values: groupRecordCounts(records, (record) => record.category) },
@@ -193,6 +193,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
       submittedAt: new Date().toISOString().slice(0, 10),
       values: normalizedValues,
       attachments,
+      verificationStage: 'Unverified',
     }
     addRecord(record)
     setSaved(true)
@@ -277,7 +278,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
                       onClick={() => setMultiTextValue(field, [...parseMultiText(value), ''])}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-brand-200 px-3 py-2 text-[10px] font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-50"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add location / branch
+                      <Plus className="h-3.5 w-3.5" /> Add {field.name === 'audienceGroups' ? 'audience group' : 'location / branch'}
                     </button>
                   </div>
                 ) : (
@@ -322,7 +323,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
   )
 }
 
-function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: SustainabilityRecord; pillar: PillarDefinition; canAct: boolean; onStatusChange: (next: RecordStatus, feedback: string, checks: string[]) => void }) {
+function RecordDetails({ record, pillar, canAct, onStatusChange, onVerificationStageChange }: { record: SustainabilityRecord; pillar: PillarDefinition; canAct: boolean; onStatusChange: (next: RecordStatus, feedback: string, checks: string[]) => void; onVerificationStageChange: (stage: VerificationStage, reference?: string) => void }) {
   const common = [
     { label: 'Record ID', value: record.id },
     { label: 'Reporting period', value: formatPeriod(record.period) },
@@ -333,6 +334,9 @@ function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: Sus
     { label: 'Submitted by', value: record.submittedBy },
     { label: 'Sustainability reviewer', value: record.reviewedBy ?? 'Not reviewed' },
     { label: 'Reviewed on', value: record.reviewedAt ? new Date(record.reviewedAt).toLocaleString() : '—' },
+    { label: 'Evidence verification', value: record.verificationStage ?? 'Unverified' },
+    { label: 'Verification updated by', value: record.verificationUpdatedBy ?? '—' },
+    { label: 'External assurance reference', value: record.verificationReference ?? '—' },
   ]
   const fields = pillar.fields.filter((field) => !['period', 'country', 'subsidiary', 'businessUnit', 'location'].includes(field.name))
   return (
@@ -350,7 +354,7 @@ function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: Sus
           {fields.filter((field) => record.values[field.name]).map((field) => (
             <div key={field.name} className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
               <dt className="text-[10px] text-slate-400">{field.label}</dt>
-              <dd className="mt-0.5 break-words text-xs font-medium text-slate-700">{record.values[field.name]}</dd>
+              <dd className="mt-0.5 break-words text-xs font-medium text-slate-700">{field.type === 'multi-text' ? formatMultiText(record.values[field.name]) : record.values[field.name]}</dd>
             </div>
           ))}
         </dl>
@@ -361,13 +365,13 @@ function RecordDetails({ record, pillar, canAct, onStatusChange }: { record: Sus
         <p className="text-[10px] text-slate-400">Submitted {record.submittedAt} · Demonstration record</p>
         {!canAct && <p className="text-xs text-slate-500">Reviewer decision: {record.reviewedBy ?? 'Awaiting designated reviewer'}{record.reviewedAt ? ` · ${new Date(record.reviewedAt).toLocaleDateString()}` : ''}</p>}
       </div>
-      {canAct && record.status === 'Submitted' && <ReviewDecisionPanel onDecision={onStatusChange} />}
+      {canAct && record.status === 'Submitted' && <ReviewDecisionPanel verificationStage={record.verificationStage ?? 'Unverified'} verificationReference={record.verificationReference} onVerificationStageChange={onVerificationStageChange} onDecision={onStatusChange} />}
     </div>
   )
 }
 
 export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
-  const { records, updateStatus } = useSustainability()
+  const { records, updateStatus, updateVerificationStage } = useSustainability()
   const { currentUser } = useCurrentUser()
   const canAddRecords = canSubmitRecords(currentUser.role)
   const canReviewRecords = canReview(currentUser.role)
@@ -413,6 +417,12 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
     if (!selectedRecord) return
     updateStatus(selectedRecord.id, next, currentUser.name, feedback, checks)
     setSelectedRecord((current) => current ? { ...current, status: next, reviewedBy: currentUser.name, reviewedAt: new Date().toISOString(), reviewFeedback: feedback, reviewChecks: checks } : current)
+  }
+
+  function applyVerificationStage(next: VerificationStage, reference?: string) {
+    if (!selectedRecord) return
+    updateVerificationStage(selectedRecord.id, next, currentUser.name, reference)
+    setSelectedRecord((current) => current ? { ...current, verificationStage: next, verificationUpdatedBy: currentUser.name, verificationUpdatedAt: new Date().toISOString(), ...(next === 'Externally Assured' ? { verificationReference: reference } : {}) } : current)
   }
 
   return (
@@ -511,7 +521,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
       </section>
 
       {canAddRecords && <Modal open={formOpen} onClose={closeForm} label={pillar.formTitle}><RecordForm pillar={pillar} onClose={closeForm} /></Modal>}
-      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} canAct={canReviewRecords} onStatusChange={applyReviewDecision} />}</Modal>
+      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} canAct={canReviewRecords} onStatusChange={applyReviewDecision} onVerificationStageChange={applyVerificationStage} />}</Modal>
     </div>
   )
 }

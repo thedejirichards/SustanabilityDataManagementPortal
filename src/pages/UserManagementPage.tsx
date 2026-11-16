@@ -4,6 +4,7 @@ import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import { appRoles, canManageUsers, userStatuses, type AppRole, type AppUser, type UserStatus } from '../data/users'
+import { countries } from '../data/sustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 import { useUsers } from '../context/useUsers'
 
@@ -13,6 +14,7 @@ const roleBadgeClasses: Record<AppRole, string> = {
   'Data Contributor': 'bg-slate-100 text-slate-600',
   'Sustainability Reviewer': 'bg-amber-50 text-amber-700',
   'Portal Administrator': 'bg-brand-50 text-brand-700',
+  'Country Managing Director / Head of Subsidiary': 'bg-violet-50 text-violet-700',
 }
 
 const statusClasses: Record<UserStatus, string> = {
@@ -39,7 +41,7 @@ interface UserFormModalProps {
   onClose: () => void
   editing: AppUser | null
   submitForApproval?: boolean
-  onSubmit: (values: { name: string; email: string; role: AppRole; status: UserStatus; department: string }) => void
+  onSubmit: (values: Omit<AppUser, 'id' | 'lastActive' | 'adminType'>) => void
 }
 
 function UserFormModal({ open, onClose, editing, submitForApproval = false, onSubmit }: UserFormModalProps) {
@@ -48,6 +50,8 @@ function UserFormModal({ open, onClose, editing, submitForApproval = false, onSu
   const [role, setRole] = useState<AppRole>(editing?.role ?? 'Data Contributor')
   const [status, setStatus] = useState<UserStatus>(editing?.status ?? 'Invited')
   const [department, setDepartment] = useState(editing?.department ?? '')
+  const [country, setCountry] = useState(editing?.country ?? '')
+  const [subsidiary, setSubsidiary] = useState(editing?.subsidiary ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
 
@@ -57,6 +61,8 @@ function UserFormModal({ open, onClose, editing, submitForApproval = false, onSu
     if (!email.trim()) next.email = 'Email is required.'
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) next.email = 'Enter a valid email address.'
     if (!department.trim()) next.department = 'Department is required.'
+    if (role === 'Country Managing Director / Head of Subsidiary' && !country) next.country = 'Country is required for country leadership users.'
+    if (role === 'Country Managing Director / Head of Subsidiary' && !subsidiary.trim()) next.subsidiary = 'Subsidiary / entity is required for country leadership users.'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -64,7 +70,7 @@ function UserFormModal({ open, onClose, editing, submitForApproval = false, onSu
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!validate()) return
-    onSubmit({ name: name.trim(), email: email.trim().toLowerCase(), role, status, department: department.trim() })
+    onSubmit({ name: name.trim(), email: email.trim().toLowerCase(), role, status, department: department.trim(), country, subsidiary: subsidiary.trim() })
     setSaved(true)
   }
 
@@ -108,6 +114,21 @@ function UserFormModal({ open, onClose, editing, submitForApproval = false, onSu
                 {userStatuses.map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
             </label>
+            {role === 'Country Managing Director / Head of Subsidiary' && <>
+              <label className="block min-w-0">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">Country <span className="text-rose-500">*</span></span>
+                <select value={country} onChange={(event) => setCountry(event.target.value)} aria-label="Country" aria-invalid={Boolean(errors.country)} className={`mt-1.5 h-10 w-full rounded-xl border bg-white px-3 text-xs text-slate-800 outline-none focus:border-brand-500 ${errors.country ? 'border-rose-400' : 'border-slate-200'}`}>
+                  <option value="">Select country</option>
+                  {countries.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                {errors.country && <span role="alert" className="mt-1 block text-[10px] font-medium text-rose-600">{errors.country}</span>}
+              </label>
+              <label className="block min-w-0">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">Subsidiary / entity <span className="text-rose-500">*</span></span>
+                <input value={subsidiary} onChange={(event) => setSubsidiary(event.target.value)} aria-label="Subsidiary / entity" aria-invalid={Boolean(errors.subsidiary)} placeholder="e.g. Access Bank (Kenya) PLC" className={`mt-1.5 h-10 w-full rounded-xl border bg-white px-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-brand-500 ${errors.subsidiary ? 'border-rose-400' : 'border-slate-200'}`} />
+                {errors.subsidiary && <span role="alert" className="mt-1 block text-[10px] font-medium text-rose-600">{errors.subsidiary}</span>}
+              </label>
+            </>}
             <label className="block min-w-0 sm:col-span-2">
               <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">Department / unit <span className="text-rose-500">*</span></span>
               <input value={department} onChange={(event) => setDepartment(event.target.value)} aria-label="Department" aria-invalid={Boolean(errors.department)} placeholder="e.g. Sustainability" className={`mt-1.5 w-full rounded-xl border bg-white px-3 py-2.5 text-xs outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${errors.department ? 'border-rose-400' : 'border-slate-200'}`} />
@@ -155,7 +176,7 @@ export default function UserManagementPage() {
     setPage(1)
   }
 
-  function submitUser(values: { name: string; email: string; role: AppRole; status: UserStatus; department: string }) {
+  function submitUser(values: Omit<AppUser, 'id' | 'lastActive' | 'adminType'>) {
     if (editing) {
       updateUser(editing.id, values)
     } else if (isMaker) {
@@ -189,6 +210,7 @@ export default function UserManagementPage() {
     administrators: users.filter((user) => user.role === 'Portal Administrator').length,
     reviewers: users.filter((user) => user.role === 'Sustainability Reviewer').length,
     contributors: users.filter((user) => user.role === 'Data Contributor').length,
+    countryLeaders: users.filter((user) => user.role === 'Country Managing Director / Head of Subsidiary').length,
     active: users.filter((user) => user.status === 'Active').length,
   }
 
@@ -213,11 +235,12 @@ export default function UserManagementPage() {
         <p className="text-xs leading-5 text-brand-900"><span className="font-bold">Maker-checker control.</span> {isMaker ? 'As a portal admin maker, new user additions are submitted as requests for checker approval.' : isChecker ? 'As a portal admin checker, review and approve or reject pending user addition requests.' : 'Changes are applied to this browser session only. Production provisioning, Access SSO synchronization and email invites require the identity service.'}</p>
       </div>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Total users</p><p className="mt-1 text-2xl font-bold text-slate-900">{counts.total}</p><p className="mt-1 text-[10px] text-slate-400">In this workspace</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Administrators</p><p className="mt-1 text-2xl font-bold text-brand-700">{counts.administrators}</p><p className="mt-1 text-[10px] text-slate-400">Full portal access</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Reviewers</p><p className="mt-1 text-2xl font-bold text-amber-600">{counts.reviewers}</p><p className="mt-1 text-[10px] text-slate-400">Can review submissions</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Contributors</p><p className="mt-1 text-2xl font-bold text-slate-700">{counts.contributors}</p><p className="mt-1 text-[10px] text-slate-400">Submit data only · {counts.active} active</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Country leads</p><p className="mt-1 text-2xl font-bold text-violet-700">{counts.countryLeaders}</p><p className="mt-1 text-[10px] text-slate-400">Nominate local focal persons</p></div>
       </section>
 
       {(isMaker || isChecker || pendingRequests.length > 0) && (
@@ -338,7 +361,7 @@ export default function UserManagementPage() {
               <UserStatusBadge status={selected.status} />
             </div>
             <dl className="mt-5 grid grid-cols-2 gap-3">
-              {([['Role', selected.role], ['Department', selected.department], ['Status', selected.status], ['Last active', selected.lastActive]] as [string, string][]).map(([label, value]) => (
+              {([['Role', selected.role], ['Department', selected.department], ['Country', selected.country ?? '—'], ['Subsidiary / entity', selected.subsidiary ?? '—'], ['Status', selected.status], ['Last active', selected.lastActive]] as [string, string][]).map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-slate-50 px-3 py-2.5"><dt className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</dt><dd className="mt-1 text-xs font-medium text-slate-700">{value}</dd></div>
               ))}
             </dl>

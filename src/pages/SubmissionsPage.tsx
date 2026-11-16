@@ -4,7 +4,7 @@ import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import StatusBadge from '../components/StatusBadge'
-import { canReview, formatPeriod, pillarByKey, pillars, type RecordStatus, type SustainabilityRecord } from '../data/sustainability'
+import { canReview, formatPeriod, pillarByKey, pillars, type RecordStatus, type SustainabilityRecord, type VerificationStage } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 import EvidenceFiles from '../components/EvidenceFiles'
@@ -14,7 +14,7 @@ const PAGE_SIZE = 5
 const statuses: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
 
 export default function SubmissionsPage() {
-  const { records, updateStatus } = useSustainability()
+  const { records, updateStatus, updateVerificationStage } = useSustainability()
   const { currentUser } = useCurrentUser()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
@@ -38,6 +38,11 @@ export default function SubmissionsPage() {
   function changeStatus(record: SustainabilityRecord, next: RecordStatus, feedback: string, checks: string[]) {
     updateStatus(record.id, next, currentUser.name, feedback, checks)
     setSelected((current) => current?.id === record.id ? { ...current, status: next, reviewedBy: currentUser.name, reviewedAt: new Date().toISOString(), reviewFeedback: feedback, reviewChecks: checks } : current)
+  }
+
+  function changeVerificationStage(record: SustainabilityRecord, next: VerificationStage, reference?: string) {
+    updateVerificationStage(record.id, next, currentUser.name, reference)
+    setSelected((current) => current?.id === record.id ? { ...current, verificationStage: next, verificationUpdatedBy: currentUser.name, verificationUpdatedAt: new Date().toISOString(), ...(next === 'Externally Assured' ? { verificationReference: reference } : {}) } : current)
   }
 
   return (
@@ -72,8 +77,8 @@ export default function SubmissionsPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-left">
-            <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">Record</th><th className="px-4 py-3">Pillar</th><th className="px-4 py-3">Reporting period</th><th className="px-4 py-3">Branch / location</th><th className="px-4 py-3">Submitted by</th><th className="px-4 py-3">Sustainability reviewer</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead>
+          <table className="w-full min-w-[1320px] text-left">
+            <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">Record</th><th className="px-4 py-3">Pillar</th><th className="px-4 py-3">Reporting period</th><th className="px-4 py-3">Branch / location</th><th className="px-4 py-3">Submitted by</th><th className="px-4 py-3">Sustainability reviewer</th><th className="px-4 py-3">Evidence verification</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead>
             <tbody>
               {pageRecords.map((record) => (
                 <tr key={record.id} className="border-t border-slate-100 hover:bg-slate-50/70">
@@ -83,6 +88,7 @@ export default function SubmissionsPage() {
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{record.location || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{record.submittedBy}</td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{record.reviewedBy ?? '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600">{record.verificationStage ?? (record.status === 'Submitted' ? 'Unverified' : 'Internal Review')}</td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{record.submittedAt}</td>
                   <td className="whitespace-nowrap px-4 py-3.5"><StatusBadge status={record.status} /></td>
                   <td className="whitespace-nowrap px-5 py-3.5 text-right">
@@ -92,7 +98,7 @@ export default function SubmissionsPage() {
                   </td>
                 </tr>
               ))}
-              {pageRecords.length === 0 && <tr><td colSpan={9} className="px-6 py-14 text-center text-xs text-slate-500">No submissions match the selected filters.</td></tr>}
+              {pageRecords.length === 0 && <tr><td colSpan={10} className="px-6 py-14 text-center text-xs text-slate-500">No submissions match the selected filters.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -106,13 +112,13 @@ export default function SubmissionsPage() {
           <div className="mt-3"><StatusBadge status={selected.status} /></div>
           <dl className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
-              ['Reporting period', formatPeriod(selected.period)], ['Country', selected.country], ['Subsidiary', selected.subsidiary], ['Business unit', selected.businessUnit], ['Branch / location', selected.location], ['Submitted by', selected.submittedBy], ['Sustainability reviewer', selected.reviewedBy ?? 'Not reviewed'], ['Review date', selected.reviewedAt ? new Date(selected.reviewedAt).toLocaleString() : '—'],
+              ['Reporting period', formatPeriod(selected.period)], ['Country', selected.country], ['Subsidiary', selected.subsidiary], ['Business unit', selected.businessUnit], ['Branch / location', selected.location], ['Submitted by', selected.submittedBy], ['Sustainability reviewer', selected.reviewedBy ?? 'Not reviewed'], ['Review date', selected.reviewedAt ? new Date(selected.reviewedAt).toLocaleString() : '—'], ['Evidence verification', selected.verificationStage ?? (selected.status === 'Submitted' ? 'Unverified' : 'Internal Review')], ['Verification updated by', selected.verificationUpdatedBy ?? '—'], ['External assurance reference', selected.verificationReference ?? '—'],
               ...Object.entries(selected.values).filter(([, value]) => value).map(([key, value]) => [key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`), value]),
             ].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 px-3 py-2.5"><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 break-words text-sm font-medium text-slate-700">{value}</dd></div>)}
           </dl>
           <EvidenceFiles attachments={selected.attachments} />
           {selected.reviewFeedback && <div className={`mt-4 rounded-xl border px-3.5 py-3 ${selected.status === 'Rejected' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}><p className="text-xs font-bold">{selected.status === 'Rejected' ? 'Reviewer feedback for branch' : 'Review note'}</p><p className="mt-1 text-sm leading-5">{selected.reviewFeedback}</p></div>}
-          {canAct && selected.status === 'Submitted' && <ReviewDecisionPanel onDecision={(next, feedback, checks) => changeStatus(selected, next, feedback, checks)} />}
+          {canAct && selected.status === 'Submitted' && <ReviewDecisionPanel verificationStage={selected.verificationStage ?? 'Unverified'} verificationReference={selected.verificationReference} onVerificationStageChange={(next, reference) => changeVerificationStage(selected, next, reference)} onDecision={(next, feedback, checks) => changeStatus(selected, next, feedback, checks)} />}
           {selected.status !== 'Submitted' && <p className="mt-4 text-xs text-slate-500">Decision recorded by {selected.reviewedBy ?? 'reviewer'}{selected.reviewedAt ? ` on ${new Date(selected.reviewedAt).toLocaleString()}` : ''}.</p>}
         </div>}
       </Modal>

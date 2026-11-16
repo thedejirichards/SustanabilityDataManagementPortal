@@ -15,6 +15,7 @@ export function SustainabilityProvider({ children }: { children: ReactNode }) {
       const reviewedAt = new Date().toISOString()
       const record = records.find((item) => item.id === id)
       if (!record || record.status !== 'Submitted') return
+      if (status === 'Approved' && record.verificationStage !== 'Externally Assured') return
       setRecords((current) => current.map((item) => item.id === id ? {
         ...item,
         status,
@@ -35,6 +36,22 @@ export function SustainabilityProvider({ children }: { children: ReactNode }) {
         createdAt: reviewedAt,
         read: false,
       }, ...current])
+    },
+    updateVerificationStage: (id, stage, reviewer, reference) => {
+      const record = records.find((item) => item.id === id)
+      if (!record) return
+      const currentStage = record.verificationStage ?? 'Unverified'
+      const allowedNext = currentStage === 'Unverified' ? 'Internal Review' : currentStage === 'Internal Review' ? 'Externally Assured' : null
+      if (stage !== allowedNext) return
+      if (stage === 'Externally Assured' && !reference?.trim()) return
+      const verificationUpdatedAt = new Date().toISOString()
+      setRecords((current) => current.map((item) => item.id === id ? {
+        ...item,
+        verificationStage: stage,
+        verificationUpdatedBy: reviewer,
+        verificationUpdatedAt,
+        ...(stage === 'Externally Assured' ? { verificationReference: reference?.trim() } : {}),
+      } : item))
     },
     markNotificationRead: (id) => setNotifications((current) => current.map((notification) => notification.id === id ? { ...notification, read: true } : notification)),
     recordsForPillar: (pillar) => records.filter((record) => record.pillar === pillar),

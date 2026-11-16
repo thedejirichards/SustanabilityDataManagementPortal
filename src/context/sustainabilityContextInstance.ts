@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { PillarKey, RecordStatus, SustainabilityRecord } from '../data/sustainability'
+import type { PillarKey, RecordStatus, SustainabilityRecord, VerificationStage } from '../data/sustainability'
 
 export interface ReviewNotification {
   id: string
@@ -19,6 +19,7 @@ export interface SustainabilityContextValue {
   notifications: ReviewNotification[]
   addRecord: (record: SustainabilityRecord) => void
   updateStatus: (id: string, status: RecordStatus, reviewer: string, feedback: string, checks: string[]) => void
+  updateVerificationStage: (id: string, stage: VerificationStage, reviewer: string, reference?: string) => void
   markNotificationRead: (id: string) => void
   recordsForPillar: (pillar: PillarKey) => SustainabilityRecord[]
 }

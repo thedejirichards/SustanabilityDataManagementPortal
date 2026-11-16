@@ -12,6 +12,8 @@ const pageTitles: Record<string, string> = {
   '/reports': 'Reports & analytics',
   '/settings': 'Configuration',
   '/users': 'User management',
+  '/nomination': 'Focal person nomination',
+  '/setup-guide': 'Setup & guide',
 }
 
 interface HeaderProps {

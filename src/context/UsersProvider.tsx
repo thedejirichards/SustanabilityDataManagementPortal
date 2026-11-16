@@ -40,6 +40,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
           status: request.status,
           department: request.department,
           lastActive: '—',
+          country: request.country,
+          subsidiary: request.subsidiary,
         },
         ...current,
       ])

@@ -2,6 +2,7 @@ import { Link, NavLink } from 'react-router-dom'
 import {
   BarChart3,
   BriefcaseBusiness,
+  ClipboardCheck,
   ClipboardList,
   HeartHandshake,
   LayoutDashboard,
@@ -22,6 +23,7 @@ type NavigationItem = {
   icon: typeof LayoutDashboard
   adminOnly?: boolean
   hiddenForAdmin?: boolean
+  nominationOnly?: boolean
   hidden?: boolean
 }
 
@@ -36,8 +38,8 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
       { to: '/operations', label: 'Sustainable operations', icon: Leaf, hiddenForAdmin: true },
       { to: '/development-finance', label: 'Development finance', icon: BriefcaseBusiness, hiddenForAdmin: true },
       { to: '/corporate-social-investment', label: 'Corporate social investment', icon: HeartHandshake, hiddenForAdmin: true },
-      { to: '/employee-volunteering', label: 'Employee volunteering', icon: UsersRound, hiddenForAdmin: true },
-      { to: '/advocacy-governance', label: 'Advocacy & governance', icon: Megaphone, hiddenForAdmin: true },
+      { to: '/capacity-building', label: 'Capacity building', icon: UsersRound, hiddenForAdmin: true },
+      { to: '/thought-leadership-awards', label: 'Thought leadership & awards', icon: Megaphone, hiddenForAdmin: true },
     ],
   },
   {
@@ -45,9 +47,14 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     items: [
       { to: '/submissions', label: 'Submissions & reviews', icon: ClipboardList, hiddenForAdmin: true },
       { to: '/reports', label: 'Reports & analytics', icon: BarChart3 },
+      { to: '/setup-guide', label: 'Setup & guide', icon: Settings2 },
       { to: '/settings', label: 'Configuration', icon: Settings2, hidden: true },
       { to: '/users', label: 'User management', icon: UserCog, adminOnly: true },
     ],
+  },
+  {
+    label: 'Country leadership',
+    items: [{ to: '/nomination', label: 'Focal person nomination', icon: ClipboardCheck, nominationOnly: true }],
   },
 ]
 
@@ -59,6 +66,7 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { currentUser } = useCurrentUser()
   const isAdmin = canManageUsers(currentUser.role)
+  const isCountryLeader = currentUser.role === 'Country Managing Director / Head of Subsidiary'
 
   return (
     <>
@@ -80,7 +88,9 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-5">
           {navigationGroups.map((group) => {
-            const items = group.items.filter((item) => !item.hidden && (!item.adminOnly || isAdmin) && (!item.hiddenForAdmin || !isAdmin))
+            const items = group.items.filter((item) => item.nominationOnly
+              ? isCountryLeader
+              : !isCountryLeader && !item.hidden && (!item.adminOnly || isAdmin) && (!item.hiddenForAdmin || !isAdmin))
             if (items.length === 0) return null
             return (
             <div key={group.label} className="mb-6 last:mb-0">

@@ -18,8 +18,8 @@ const targetRows = [
   { name: 'Sustainable Operations', unit: 'Emissions / consumption' },
   { name: 'Sustainable Development Finance', unit: 'Financing / beneficiaries' },
   { name: 'Corporate Social Investment', unit: 'Lives impacted / amount' },
-  { name: 'Employee Volunteering', unit: 'Hours / participation' },
-  { name: 'Advocacy & Governance', unit: 'Engagements / recognition' },
+  { name: 'Capacity Building', unit: 'Participants / completion / learning gain' },
+  { name: 'Thought Leadership & Awards', unit: 'Engagements / targets / recognition' },
 ]
 
 function IntegrationCard({ icon: Icon, title, status, description }: { icon: typeof Database; title: string; status: string; description: string }) {

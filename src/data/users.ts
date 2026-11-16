@@ -1,4 +1,4 @@
-export type AppRole = 'Data Contributor' | 'Sustainability Reviewer' | 'Portal Administrator'
+export type AppRole = 'Data Contributor' | 'Sustainability Reviewer' | 'Portal Administrator' | 'Country Managing Director / Head of Subsidiary'
 export type UserStatus = 'Active' | 'Suspended' | 'Invited'
 export type AdminType = 'maker' | 'checker'
 
@@ -11,9 +11,11 @@ export interface AppUser {
   department: string
   lastActive: string
   adminType?: AdminType
+  country?: string
+  subsidiary?: string
 }
 
-export const appRoles: AppRole[] = ['Data Contributor', 'Sustainability Reviewer', 'Portal Administrator']
+export const appRoles: AppRole[] = ['Data Contributor', 'Sustainability Reviewer', 'Portal Administrator', 'Country Managing Director / Head of Subsidiary']
 export const userStatuses: UserStatus[] = ['Active', 'Suspended', 'Invited']
 
 export type UserAdditionDecision = 'Pending' | 'Approved' | 'Rejected'
@@ -25,6 +27,8 @@ export interface UserAdditionRequest {
   role: AppRole
   status: UserStatus
   department: string
+  country?: string
+  subsidiary?: string
   requestedBy: string
   requestedById: string
   requestedAt: string
@@ -72,6 +76,17 @@ export const users: AppUser[] = [
     department: 'Group Operations',
     lastActive: '2026-10-25',
     adminType: 'checker',
+  },
+  {
+    id: 'country-md-kenya',
+    name: 'Ralph Opara',
+    email: 'ralph.opara@accessbankplc.com',
+    role: 'Country Managing Director / Head of Subsidiary',
+    status: 'Active',
+    department: 'Country Leadership',
+    lastActive: '2026-10-05',
+    country: 'Kenya',
+    subsidiary: 'Access Bank (Kenya) PLC',
   },
 ]
 
