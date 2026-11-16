@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { ArrowRight, CircleHelp, Eye, FilePlus2, Plus, Search, Trash2, X } from 'lucide-react'
+import { ArrowRight, CircleHelp, Eye, FilePlus2, Plus, Search, Sparkles, Trash2, X } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
@@ -111,6 +111,29 @@ function getBreakdowns(pillar: PillarDefinition, records: SustainabilityRecord[]
   return []
 }
 
+const demoFormValues: Record<PillarDefinition['key'], Record<string, string>> = {
+  operations: {
+    period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Group Operations', location: 'Victoria Island, Lagos',
+    category: 'Electricity', metricGroup: 'Energy & renewables', scope: 'Scope 2', facilityOrAsset: 'Lagos Head Office', consumptionValue: '12450', unit: 'kWh', targetValue: '13000', targetUnit: 'kWh', baselineValue: '13800', baselinePeriod: 'FY2025', aggregationRule: 'Sum volumes', sourceReference: 'DEMO-ELEC-2026-10',
+  },
+  finance: {
+    period: '2026-10', country: 'Nigeria', subsidiary: 'Access Bank', businessUnit: 'Corporate Banking', location: 'Lagos',
+    category: 'Green loans', businessFunction: 'Commercial Banking', productType: 'Solar SME Finance', useOfFunds: 'Financing for rooftop solar installations and energy-efficient equipment.', sustainableFinanceClassification: 'Green', amountFinanced: '25000000', amountCommitted: '30000000', amountDisbursed: '18000000', currency: 'NGN', facilityCount: '12', beneficiaries: '12', womenBeneficiaries: '5', jobsCreated: '24', sdgs: 'SDG 7, SDG 8',
+  },
+  csi: {
+    period: '2026-10', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Sustainability', location: '["Victoria Island", "Ikeja"]',
+    name: 'Digital Learning for Schools', category: 'Education', initiativeDetails: 'Provided digital learning equipment and teacher training to public schools.', projectStatus: 'Ongoing', budget: '15000000', amountDisbursed: '9000000', amountSupported: '9000000', currency: 'NGN', targetBeneficiaries: '800', livesImpacted: '620', womenBeneficiaries: '330', youthBeneficiaries: '620', populationSegment: 'Public school learners', implementationLocation: 'Lagos State', implementingPartner: 'Learning Bridge Foundation', partnerType: 'NGO / nonprofit', outcomeTarget: 'Improve access to digital learning for 800 learners.', outcomeActual: '620 learners received access to digital learning resources.', outputMeasure: 'Learners reached', outputTarget: '800', outputActual: '620', outputUnit: 'learners', strategicAlignment: 'SDG 4 · Quality education',
+  },
+  volunteering: {
+    period: '2026-10', country: 'Ghana', subsidiary: 'Access Bank', businessUnit: 'People & Culture', location: 'Accra',
+    name: 'Climate Literacy Workshop', recordType: 'Capacity building', category: 'Climate literacy', sessionsDelivered: '2', audienceGroups: '["Employees", "SME customers"]', targetParticipants: '75', participantsTotal: '64', participantsCompleted: '60', completionRate: '93.75', trainingHours: '6', preTrainingScore: '58', postTrainingScore: '82', learningGain: '41.38', sdgs: 'SDG 13',
+  },
+  advocacy: {
+    period: '2026-10', country: 'Nigeria', subsidiary: 'Access Holdings', businessUnit: 'Sustainability', location: 'Lagos',
+    name: 'Responsible Business Leadership Award', category: 'Award / recognition', entityTarget: '1', entityActual: '1', targetMeasure: 'Awards received', staffInvolved: 'Group Sustainability leadership team', eventDate: '2026-10-15', eventLocation: 'Lagos, Nigeria', awardClass: 'National', awardingBody: 'Africa Responsible Business Forum', recognitionReach: 'National', awardCriteria: 'Independent review of governance, impact and sustainability performance.', publishedReference: 'https://example.org/demo-award', details: 'Illustrative award record for demonstration purposes.',
+  },
+}
+
 function BreakdownCard({ title, values }: { title: string; values: { label: string; count: number }[] }) {
   const maxValue = Math.max(1, ...values.map((item) => item.count))
   return (
@@ -135,6 +158,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [attachments, setAttachments] = useState<SustainabilityRecord['attachments']>([])
   const [saved, setSaved] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('Record submitted')
 
   function setValue(field: FormField, value: string) {
     setValues((current) => ({ ...current, [field.name]: value }))
@@ -199,11 +223,39 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
     setSaved(true)
   }
 
+  function addDemoRecord() {
+    const values = demoFormValues[pillar.key]
+    const category = values.category || pillar.categories[0]
+    const locationField = pillar.fields.find((field) => field.name === 'location')
+    const location = locationField?.type === 'multi-text'
+      ? formatMultiText(values.location)
+      : (values.location || values.implementationLocation || values.eventLocation || '')
+    const record: SustainabilityRecord = {
+      id: `SDM-${pillar.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+      pillar: pillar.key,
+      name: values.name?.trim() || `${category} · ${location || values.productType || 'Demo record'}`,
+      category,
+      period: values.period,
+      country: values.country,
+      subsidiary: values.subsidiary,
+      businessUnit: values.businessUnit,
+      location,
+      status: 'Submitted',
+      submittedBy: currentUser.name,
+      submittedAt: new Date().toISOString().slice(0, 10),
+      values,
+      verificationStage: 'Unverified',
+    }
+    addRecord(record)
+    setSuccessMessage('Demo record added')
+    setSaved(true)
+  }
+
   if (saved) {
     return (
       <div className="py-7 text-center">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><FilePlus2 className="h-5 w-5" /></span>
-        <h2 className="mt-4 text-lg font-bold text-slate-900">Record submitted</h2>
+        <h2 className="mt-4 text-lg font-bold text-slate-900">{successMessage}</h2>
         <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">The record is now visible in this demonstration session with a <span className="font-semibold text-brand-600">Submitted</span> status. Production saving and review routing require the portal API.</p>
         <button type="button" onClick={onClose} className="mt-6 rounded-xl bg-brand-600 px-5 py-2.5 text-xs font-semibold text-white hover:bg-brand-700">Done</button>
       </div>
@@ -315,6 +367,7 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
           <p className="text-[10px] text-slate-400">* Required fields · Demo data is held in memory only.</p>
           <div className="flex shrink-0 items-center gap-2">
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="button" onClick={addDemoRecord} className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-brand-700 hover:bg-brand-50"><Sparkles className="h-3.5 w-3.5" /> Add demo record</button>
             <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700">Submit record <ArrowRight className="h-3.5 w-3.5" /></button>
           </div>
         </div>
