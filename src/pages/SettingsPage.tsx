@@ -61,7 +61,7 @@ export default function SettingsPage() {
           <IntegrationCard icon={ClipboardList} title="Validation & approval rules" status="Requirements pending" description="Confirm duplicate rules, review stages, mandatory field rules and return reasons from the BRS." />
         </div>
       </section>
-
+//kek
       {!isAdmin && <section className="flex flex-col justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-5 sm:flex-row sm:items-center sm:px-6"><div><p className="text-xs font-bold text-brand-900">Ready to review sustainability records?</p><p className="mt-1 text-[10px] text-brand-700">Open the module register to explore the available fields and demonstration submissions.</p></div><Link to={pillars[0].path} className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-white px-3.5 py-2.5 text-[10px] font-semibold text-brand-700 shadow-sm hover:bg-brand-50">Open data module <ArrowRight className="h-3 w-3" /></Link></section>}
     </div>
   )
