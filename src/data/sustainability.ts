@@ -7,12 +7,13 @@ import {
   Megaphone,
   UsersRound,
 } from 'lucide-react'
-import type { AppRole } from './users'
+import { getInputterAllowedPillars, type AppRole } from './users'
 
 export type PillarKey = 'operations' | 'finance' | 'csi' | 'volunteering' | 'advocacy'
 export type RecordStatus = 'Submitted' | 'Approved' | 'Rejected'
 export type VerificationStage = 'Unverified' | 'Internal Review' | 'Externally Assured'
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file' | 'multi-text'
+export type ReviewWorkflowStage = 'Group Head Review' | 'Sustainability Review'
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file' | 'multi-text' | 'multi-select'
 
 export interface EvidenceAttachment {
   id: string
@@ -41,6 +42,12 @@ export interface SustainabilityRecord {
   reviewedAt?: string
   reviewFeedback?: string
   reviewChecks?: string[]
+  reviewWorkflowStage?: ReviewWorkflowStage
+  inputterDepartment?: string
+  groupHeadReviewedBy?: string
+  groupHeadReviewedAt?: string
+  groupHeadReviewFeedback?: string
+  groupHeadReviewChecks?: string[]
   verificationStage?: VerificationStage
   verificationUpdatedBy?: string
   verificationUpdatedAt?: string
@@ -104,6 +111,294 @@ export const countries = [
 ]
 export const subsidiaries = ['Access Bank', 'Access Pensions', 'Access Insurance', 'Access Holdings']
 export const businessUnits = ['Group Operations', 'Retail Banking', 'Corporate Banking', 'People & Culture', 'Sustainability']
+export interface DataInputterField {
+  name: string
+  definition: string
+  responsibleFunctions: string[]
+  pillar: PillarKey
+  focusArea?: string
+}
+
+const dataInputterFieldRows: [name: string, responsibleFunctions: string][] = [
+  ['Non-Discrimination', 'HR'],
+  ['Ethical Standards', 'Compliance'],
+  ['Female Employees', 'HR'],
+  ['Women in Senior Management', 'HR'],
+  ['PWDs in Workforce', 'HR'],
+  ['Accessible Buildings', 'Facilities'],
+  ['Human Rights Violations', 'Legal / Compliance'],
+  ['Lost Time Injury Frequency Rate', 'HR / HSE'],
+  ['Total Recordable Incident Rate', 'HR / HSE'],
+  ['Absenteeism Rate', 'HR'],
+  ['Wellness Programme Participation', 'HR'],
+  ['Employee Training Hours', 'HR'],
+  ['Average Training Hours per Employee', 'HR'],
+  ['Employees Trained', 'HR'],
+  ['Volunteer Hours', 'CSI Unit'],
+  ['Carbon Emissions – Scope 1', 'Sustainability / Operations'],
+  ['Carbon Emissions – Scope 2', 'Sustainability / Operations'],
+  ['Carbon Emissions – Scope 3', 'Sustainability / Operations'],
+  ['Operational Emissions Intensity', 'Sustainability / Operations'],
+  ['Operational Emissions Reduction', 'Sustainability / Operations'],
+  ['Total Energy Consumption', 'Operations'],
+  ['Grid Electricity Consumption', 'Operations'],
+  ['Generator Fuel Consumption', 'Operations'],
+  ['Renewable Energy Share', 'Operations'],
+  ['Solar Installations', 'Facilities'],
+  ['Solar-powered ATMs', 'Facilities'],
+  ['EV / ULEV Fleet Share', 'Fleet / Facilities'],
+  ['Paper Consumption', 'Operations / Procurement'],
+  ['Sustainably Sourced Paper', 'Procurement'],
+  ['Waste Generated', 'Operations'],
+  ['Waste Recycled', 'Operations'],
+  ['Waste Recycling Rate', 'Operations'],
+  ['Waste to Landfill', 'Operations'],
+  ['Locations with Waste Recycling', 'Facilities'],
+  ['Water Withdrawal', 'Operations'],
+  ['Water Intensity', 'Operations'],
+  ['Business Travel Emissions', 'Operations / Admin'],
+  ['Air Travel Reduction', 'Operations / Admin'],
+  ['Employee Commute Emissions', 'HR / Sustainability'],
+  ['Employee Commute Emissions Reduction', 'HR / Sustainability'],
+  ['Carbon Sink / Offset Savings', 'Sustainability'],
+  ['Offsets Retired', 'Sustainability'],
+  ['Trees Planted', 'Sustainability / CSI Unit'],
+  ['Tree Survival Rate', 'Sustainability / CSI Unit'],
+  ['Green / IFC EDGE Certified Buildings', 'Facilities'],
+  ['Certified Green Floor Area', 'Facilities'],
+  ['Refrigerant Leakage Emissions', 'Facilities'],
+  ['Data Centre PUE', 'IT / Facilities'],
+  ['E&S Risk Management', 'Risk / Sustainability'],
+  ['Sustainability KPIs in Scorecards', 'Sustainability / HR'],
+  ['Sustainability Assessments & Audits', 'Sustainability / Audit'],
+  ['Sustainability Training & Awareness', 'HR / Sustainability'],
+  ['Stakeholder Partnerships & Engagements', 'Sustainability'],
+]
+
+const financeInputterFieldRows: [name: string, functions: string, definition: string][] = [
+  ['Sustainable Finance Framework', 'Sustainability', 'Reported sustainable finance framework for the reporting boundary.'],
+  ['DFI / Donor Funding Secured', 'Corporate / Project Finance', 'Funding raised from development finance institutions and donor agencies.'],
+  ['DFI / Donor Facilities Closed', 'Corporate / Project Finance', 'Reported DFI / donor facilities closed for the reporting boundary.'],
+  ['New MSMEs Onboarded', 'Retail / SME Banking', 'New micro, small and medium enterprises onboarded.'],
+  ['Active MSME Customers', 'Retail / SME Banking', 'Reported active MSME customers for the reporting boundary.'],
+  ['Women-owned MSMEs Financed', 'Retail / SME Banking', 'Reported women-owned MSMEs financed for the reporting boundary.'],
+  ['Youth-owned MSMEs Financed', 'Retail / SME Banking', 'Reported youth-owned MSMEs financed for the reporting boundary.'],
+  ['MSME Lending Disbursed', 'Retail / SME Banking', 'Reported MSME lending disbursed for the reporting boundary.'],
+  ['Jobs Created / Sustained by MSMEs', 'Retail / SME Banking', 'Direct jobs reported by supported MSMEs.'],
+  ['Financial Literacy Beneficiaries', 'CSI / Retail', 'Reported financial literacy beneficiaries for the reporting boundary.'],
+  ['Low-income Individuals Reached', 'Retail', 'Low-income individuals receiving qualifying financial services.'],
+  ['Women Financial Inclusion Customers', 'Retail', 'Reported women financial inclusion customers for the reporting boundary.'],
+  ['Rural / Underserved Customers', 'Retail', 'Reported rural / underserved customers for the reporting boundary.'],
+  ['Financial Inclusion NPL Ratio', 'Risk / Retail', 'Reported financial inclusion NPL ratio for the reporting boundary.'],
+  ['Sustainable Lending Disbursed', 'Business / Sustainability', 'New lending meeting the sustainable finance taxonomy.'],
+  ['Green Loan Portfolio Share', 'Business / Risk', 'Green loans as a percentage of gross loans.'],
+  ['Climate Mitigation Finance', 'Business / Sustainability', 'Reported climate mitigation finance for the reporting boundary.'],
+  ['Climate Adaptation Finance', 'Business / Sustainability', 'Reported climate adaptation finance for the reporting boundary.'],
+  ['Social Finance', 'Business / Sustainability', 'Reported social finance for the reporting boundary.'],
+  ['Sustainability-linked Lending', 'Business / Sustainability', 'Reported sustainability-linked lending for the reporting boundary.'],
+  ['Corporate Clients ESRM Screened', 'Risk / Credit', 'Reported corporate clients ESRM screened for the reporting boundary.'],
+  ['Portfolio ESRM Screening Coverage', 'Risk / Credit', 'In-scope portfolio with completed E&S risk screening.'],
+  ['High-risk Transactions Assessed', 'Risk / Credit', 'Reported high-risk transactions assessed for the reporting boundary.'],
+  ['Equator Principles Transactions', 'Project Finance / Risk', 'Reported Equator Principles transactions for the reporting boundary.'],
+  ['IFC Performance Standards Transactions', 'Project Finance / Risk', 'Reported IFC Performance Standards transactions for the reporting boundary.'],
+  ['Financed Emissions – Business Loans', 'Risk / Sustainability', 'Reported financed emissions – business loans for the reporting boundary.'],
+  ['Financed Emissions – Project Finance', 'Risk / Sustainability', 'Reported financed emissions – project finance for the reporting boundary.'],
+  ['Financed Emissions – Commercial Real Estate', 'Risk / Sustainability', 'Reported financed emissions – commercial real estate for the reporting boundary.'],
+  ['Financed Emissions – Mortgages', 'Risk / Sustainability', 'Reported financed emissions – mortgages for the reporting boundary.'],
+  ['Financed Emissions – Motor Vehicle Loans', 'Risk / Sustainability', 'Reported financed emissions – motor vehicle loans for the reporting boundary.'],
+  ['Financed Emissions – Listed Equity & Bonds', 'Treasury / Sustainability', 'Reported financed emissions – listed equity & bonds for the reporting boundary.'],
+  ['Financed Emissions Data Quality Score', 'Risk / Sustainability', 'Reported financed emissions data quality score for the reporting boundary.'],
+  ['Financed Emissions Reduction', 'Risk / Sustainability', 'Reduction in financed emissions versus baseline.'],
+  ['Carbon-intensive Sector Exposure Reduction', 'Risk / Business', 'Reported carbon-intensive sector exposure reduction for the reporting boundary.'],
+  ['Clients Receiving Go-Green Support', 'Business / Sustainability', 'Reported clients receiving go-green support for the reporting boundary.'],
+  ['Carbon Market Partnerships', 'Business / Sustainability', 'Reported carbon market partnerships for the reporting boundary.'],
+]
+
+const csiInputterFieldRows: [name: string, definition: string][] = [
+  ['Learners Reached', 'Reported learners reached attributable to supported education programmes.'],
+  ['Teachers Trained', 'Reported teachers trained attributable to supported education programmes.'],
+  ['Classrooms / Learning Spaces Delivered', 'Reported classrooms / learning spaces delivered attributable to supported education programmes.'],
+  ['Scholarships / Learning Materials Provided', 'Reported scholarships / learning materials provided attributable to supported education programmes.'],
+  ['Education Investment', 'Reported education investment attributable to supported education programmes.'],
+  ['Male Beneficiaries', 'Reported male beneficiaries attributable to supported education programmes.'],
+  ['Female Beneficiaries', 'Reported female beneficiaries attributable to supported education programmes.'],
+  ['Beneficiaries with Disabilities', 'Reported beneficiaries with disabilities attributable to supported education programmes.'],
+  ['Programme Completion Rate', 'Reported programme completion rate attributable to supported education programmes.'],
+  ['Attendance Improvement', 'Reported attendance improvement attributable to supported education programmes.'],
+  ['Learning Assessment Improvement', 'Reported learning assessment improvement attributable to supported education programmes.'],
+  ['Teachers Applying New Methods', 'Reported teachers applying new methods attributable to supported education programmes.'],
+  ['Progression / Transition Rate', 'Reported progression / transition rate attributable to supported education programmes.'],
+  ['Sustained Learning Outcome', 'Reported sustained learning outcome attributable to supported education programmes.'],
+  ['Education SROI', 'Reported education SROI attributable to supported education programmes.'],
+  ['Health Beneficiaries Reached', 'Reported health beneficiaries reached attributable to supported health programmes.'],
+  ['Screenings Conducted', 'Reported screenings conducted attributable to supported health programmes.'],
+  ['Treatments / Referrals Provided', 'Reported treatments / referrals provided attributable to supported health programmes.'],
+  ['Health Facilities Supported', 'Reported health facilities supported attributable to supported health programmes.'],
+  ['Health Workers Trained', 'Reported health workers trained attributable to supported health programmes.'],
+  ['Health Investment', 'Reported health investment attributable to supported health programmes.'],
+  ['Male Beneficiaries', 'Reported male beneficiaries attributable to supported health programmes.'],
+  ['Female Beneficiaries', 'Reported female beneficiaries attributable to supported health programmes.'],
+  ['Improved Health Knowledge', 'Reported improved health knowledge attributable to supported health programmes.'],
+  ['Referral Completion Rate', 'Reported referral completion rate attributable to supported health programmes.'],
+  ['Access to Essential Services', 'Reported access to essential services attributable to supported health programmes.'],
+  ['Disease Risk Reduction', 'Reported disease risk reduction attributable to supported health programmes.'],
+  ['Sustained Health Behaviour Change', 'Reported sustained health behaviour change attributable to supported health programmes.'],
+  ['Health SROI', 'Reported health SROI attributable to supported health programmes.'],
+  ['Entrepreneurs / MSMEs Reached', 'Reported entrepreneurs / MSMEs reached attributable to supported entrepreneurship programmes.'],
+  ['Entrepreneurs Trained', 'Reported entrepreneurs trained attributable to supported entrepreneurship programmes.'],
+  ['Businesses Funded', 'Reported businesses funded attributable to supported entrepreneurship programmes.'],
+  ['Funding Deployed', 'Reported funding deployed attributable to supported entrepreneurship programmes.'],
+  ['Mentoring Hours', 'Reported mentoring hours attributable to supported entrepreneurship programmes.'],
+  ['Entrepreneurship Investment', 'Reported entrepreneurship investment attributable to supported entrepreneurship programmes.'],
+  ['Women Beneficiaries', 'Reported women beneficiaries attributable to supported entrepreneurship programmes.'],
+  ['Youth Beneficiaries', 'Reported youth beneficiaries attributable to supported entrepreneurship programmes.'],
+  ['Businesses Formalised', 'Reported businesses formalised attributable to supported entrepreneurship programmes.'],
+  ['Finance Access Rate', 'Reported finance access rate attributable to supported entrepreneurship programmes.'],
+  ['Average Revenue Growth', 'Reported average revenue growth attributable to supported entrepreneurship programmes.'],
+  ['Jobs Created / Sustained', 'Reported jobs created / sustained attributable to supported entrepreneurship programmes.'],
+  ['12-month Business Survival Rate', 'Reported 12-month business survival rate attributable to supported entrepreneurship programmes.'],
+  ['Entrepreneurship SROI', 'Reported entrepreneurship SROI attributable to supported entrepreneurship programmes.'],
+  ['Environmental Beneficiaries Reached', 'Reported environmental beneficiaries reached attributable to supported environment programmes.'],
+  ['Trees Planted', 'Reported trees planted attributable to supported environment programmes.'],
+  ['Waste Collected', 'Reported waste collected attributable to supported environment programmes.'],
+  ['Waste Recycled / Upcycled', 'Reported waste recycled / upcycled attributable to supported environment programmes.'],
+  ['Sites Restored', 'Reported sites restored attributable to supported environment programmes.'],
+  ['Environment Investment', 'Reported environment investment attributable to supported environment programmes.'],
+  ['Male Beneficiaries', 'Reported male beneficiaries attributable to supported environment programmes.'],
+  ['Female Beneficiaries', 'Reported female beneficiaries attributable to supported environment programmes.'],
+  ['Tree Survival Rate', 'Reported tree survival rate attributable to supported environment programmes.'],
+  ['Waste Diversion Rate', 'Reported waste diversion rate attributable to supported environment programmes.'],
+  ['Climate Knowledge Improvement', 'Reported climate knowledge improvement attributable to supported environment programmes.'],
+  ['GHG Emissions Avoided / Sequestered', 'Reported GHG emissions avoided / sequestered attributable to supported environment programmes.'],
+  ['Green Jobs Created / Sustained', 'Reported green jobs created / sustained attributable to supported environment programmes.'],
+  ['Environment SROI', 'Reported environment SROI attributable to supported environment programmes.'],
+]
+
+const csiCurrencyUnitOptions = ['NGN', 'USD', 'GHS', 'KES', 'RWF', 'ZMW', 'XOF', 'Other']
+const csiRateUnitOptions = ['%', 'Percentage points', 'Ratio', 'Other']
+const csiPeopleUnitOptions = ['People', 'Beneficiaries', 'Count', 'Other']
+const csiUnitOptionsByIndicator: Record<string, string[]> = {
+  'Education Investment': csiCurrencyUnitOptions,
+  'Health Investment': csiCurrencyUnitOptions,
+  'Entrepreneurship Investment': csiCurrencyUnitOptions,
+  'Environment Investment': csiCurrencyUnitOptions,
+  'Funding Deployed': csiCurrencyUnitOptions,
+  'Learners Reached': ['Learners', 'People', 'Count', 'Other'],
+  'Teachers Trained': ['Teachers', 'People', 'Count', 'Other'],
+  'Classrooms / Learning Spaces Delivered': ['Classrooms', 'Learning spaces', 'Count', 'Other'],
+  'Scholarships / Learning Materials Provided': ['Scholarships', 'Learning materials', 'Count', 'Other'],
+  'Male Beneficiaries': csiPeopleUnitOptions,
+  'Female Beneficiaries': csiPeopleUnitOptions,
+  'Beneficiaries with Disabilities': csiPeopleUnitOptions,
+  'Programme Completion Rate': csiRateUnitOptions,
+  'Attendance Improvement': ['%', 'Percentage points', 'Days', 'Other'],
+  'Learning Assessment Improvement': ['Score', 'Points', '%', 'Percentage points', 'Other'],
+  'Teachers Applying New Methods': ['Teachers', 'People', '%', 'Count', 'Other'],
+  'Progression / Transition Rate': csiRateUnitOptions,
+  'Sustained Learning Outcome': ['Outcomes', 'Score', '%', 'Other'],
+  'Education SROI': ['Ratio', 'Score', 'Other'],
+  'Health Beneficiaries Reached': csiPeopleUnitOptions,
+  'Screenings Conducted': ['Screenings', 'People', 'Count', 'Other'],
+  'Treatments / Referrals Provided': ['Treatments', 'Referrals', 'Count', 'Other'],
+  'Health Facilities Supported': ['Facilities', 'Count', 'Other'],
+  'Health Workers Trained': ['Health workers', 'People', 'Count', 'Other'],
+  'Improved Health Knowledge': ['Score', 'Points', '%', 'Percentage points', 'Other'],
+  'Referral Completion Rate': csiRateUnitOptions,
+  'Access to Essential Services': ['People', 'Services', 'Count', 'Other'],
+  'Disease Risk Reduction': ['%', 'Percentage points', 'Cases', 'Other'],
+  'Sustained Health Behaviour Change': ['People', '%', 'Count', 'Other'],
+  'Health SROI': ['Ratio', 'Score', 'Other'],
+  'Entrepreneurs / MSMEs Reached': ['Entrepreneurs', 'MSMEs', 'Businesses', 'Count', 'Other'],
+  'Entrepreneurs Trained': ['Entrepreneurs', 'People', 'Count', 'Other'],
+  'Businesses Funded': ['Businesses', 'Count', 'Other'],
+  'Mentoring Hours': ['Hours', 'Other'],
+  'Women Beneficiaries': csiPeopleUnitOptions,
+  'Youth Beneficiaries': csiPeopleUnitOptions,
+  'Businesses Formalised': ['Businesses', 'Count', 'Other'],
+  'Finance Access Rate': csiRateUnitOptions,
+  'Average Revenue Growth': ['%', 'Percentage points', 'Other'],
+  'Jobs Created / Sustained': ['Jobs', 'People', 'Count', 'Other'],
+  '12-month Business Survival Rate': csiRateUnitOptions,
+  'Entrepreneurship SROI': ['Ratio', 'Score', 'Other'],
+  'Environmental Beneficiaries Reached': csiPeopleUnitOptions,
+  'Trees Planted': ['Trees', 'Count', 'Other'],
+  'Waste Collected': ['kg', 'Tonnes', 'Other'],
+  'Waste Recycled / Upcycled': ['kg', 'Tonnes', 'Other'],
+  'Sites Restored': ['Sites', 'Hectares', 'Other'],
+  'Tree Survival Rate': csiRateUnitOptions,
+  'Waste Diversion Rate': csiRateUnitOptions,
+  'Climate Knowledge Improvement': ['Score', 'Points', '%', 'Percentage points', 'Other'],
+  'GHG Emissions Avoided / Sequestered': ['tCO₂e', 'kgCO₂e', 'Other'],
+  'Green Jobs Created / Sustained': ['Jobs', 'People', 'Count', 'Other'],
+  'Environment SROI': ['Ratio', 'Score', 'Other'],
+}
+
+const csiUnitOptionsByFocusAreaAndIndicator: Record<string, string[]> = {
+  'Education|Attendance Improvement': ['%', 'Percentage points', 'Days', 'Other'],
+  'Education|Learning Assessment Improvement': ['Score', 'Points', '%', 'Percentage points', 'Other'],
+  'Health|Improved Health Knowledge': ['Score', 'Points', '%', 'Percentage points', 'Other'],
+  'Health|Disease Risk Reduction': ['%', 'Percentage points', 'Cases', 'Other'],
+  'Environment|Climate Knowledge Improvement': ['Score', 'Points', '%', 'Percentage points', 'Other'],
+}
+
+export function getCsiInputterUnitOptions(focusArea: string, indicator: string) {
+  if (!focusArea || !indicator) return []
+  return csiUnitOptionsByFocusAreaAndIndicator[`${focusArea}|${indicator}`]
+    ?? csiUnitOptionsByIndicator[indicator]
+    ?? ['Count', 'Other']
+}
+
+export const dataInputterFields: DataInputterField[] = [
+  ...dataInputterFieldRows.map(([name, functions]) => ({
+    name,
+    definition: name,
+    responsibleFunctions: functions.split(' / '),
+    pillar: 'operations' as const,
+  })),
+  ...financeInputterFieldRows.map(([name, functions, definition]) => ({
+    name,
+    definition,
+    responsibleFunctions: functions.split(' / '),
+    pillar: 'finance' as const,
+  })),
+  ...csiInputterFieldRows.map(([name, definition]) => ({
+    name,
+    definition,
+    responsibleFunctions: ['CSI Unit'],
+    pillar: 'csi' as const,
+    focusArea: ['Education', 'Health', 'Entrepreneurship', 'Environment'].find((area) => definition.toLowerCase().includes(`${area.toLowerCase()} programme`)),
+  })),
+]
+
+export const dataInputterUnitOptions = [
+  'Count',
+  '%',
+  'Hours',
+  'Hours per employee',
+  'Incidents per million hours',
+  'tCO₂e',
+  'tCO₂e per employee',
+  'kWh',
+  'MWh',
+  'GJ',
+  'L',
+  'm³',
+  'Tonnes',
+  'Buildings',
+  'ATMs',
+  'Vehicles',
+  'Ratio',
+  'Score',
+  'Not applicable',
+  'Other',
+]
+
+export function getDataInputterFields(department: string, pillar?: PillarKey) {
+  const normalizedDepartment = department.trim().toLowerCase()
+  return dataInputterFields.filter((field) => (!pillar || field.pillar === pillar)
+    && field.responsibleFunctions.some((functionName) => functionName.toLowerCase() === normalizedDepartment))
+}
+
 export const focusAreas = ['Education', 'Health', 'Entrepreneurship', 'Environment']
 export const sdgOptions = [
   'SDG 1 · No poverty',
@@ -127,8 +422,8 @@ const reportingFields: FormField[] = [
     required: true,
     options: periods.map(({ value, label }) => `${value}|${label}`),
   },
-  { name: 'country', label: 'Country', type: 'select', required: true, options: countries },
   { name: 'subsidiary', label: 'Subsidiary', type: 'select', required: true, options: subsidiaries },
+  { name: 'country', label: 'Country', type: 'select', required: true, options: countries },
   { name: 'businessUnit', label: 'Business unit', type: 'select', required: true, options: businessUnits },
   { name: 'location', label: 'Location / branch', type: 'text', required: true },
 ]
@@ -374,11 +669,16 @@ export const formatPeriod = (period: string) => {
 }
 
 export function canReview(role: AppRole) {
-  return role === 'Sustainability Reviewer' || role === 'Portal Administrator'
+  return role === 'Sustainability Reviewer' || role === 'Group Head' || role === 'Portal Administrator'
+}
+
+export function canViewPillar(role: AppRole, pillar: PillarKey, department = '') {
+  const allowedPillars = getInputterAllowedPillars(role, department)
+  return !allowedPillars || allowedPillars.some((allowedPillar) => allowedPillar === pillar)
 }
 
 export function canSubmitRecords(role: AppRole) {
-  return role === 'Data Contributor' || role === 'Portal Administrator'
+  return role === 'Portal Administrator' || role === 'Data Inputter' || role === 'Sustainability Inputter'
 }
 
 const baseDemoRecords: SustainabilityRecord[] = [
@@ -448,6 +748,8 @@ export const demoRecords: SustainabilityRecord[] = baseDemoRecords.map((record) 
   ...record,
   verificationStage: record.status === 'Submitted' ? 'Unverified' : 'Internal Review',
 }))
+
+export const dataInputterBranchOptions = [...new Set(demoRecords.map((record) => record.location).filter(Boolean))].sort()
 
 export const iconForPillar = {
   operations: Leaf,

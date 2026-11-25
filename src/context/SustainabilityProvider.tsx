@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { demoRecords } from '../data/sustainability'
+import type { AppRole } from '../data/users'
 import { SustainabilityContext, type ReviewNotification, type SustainabilityContextValue } from './sustainabilityContextInstance'
 
 export function SustainabilityProvider({ children }: { children: ReactNode }) {
@@ -10,12 +11,14 @@ export function SustainabilityProvider({ children }: { children: ReactNode }) {
     records,
     notifications,
     addRecord: (record) => setRecords((current) => [record, ...current]),
-    updateStatus: (id, status, reviewer, feedback, checks) => {
+    updateStatus: (id, status, reviewer, feedback, checks, reviewerRole: AppRole) => {
       if (status === 'Submitted') return
       const reviewedAt = new Date().toISOString()
       const record = records.find((item) => item.id === id)
       if (!record || record.status !== 'Submitted') return
-      if (status === 'Approved' && record.verificationStage !== 'Externally Assured') return
+      if (status === 'Approved' && record.reviewWorkflowStage === 'Group Head Review') return
+      if (record.reviewWorkflowStage === 'Sustainability Review' && reviewerRole !== 'Sustainability Reviewer') return
+      if (status === 'Approved' && reviewerRole !== 'Sustainability Reviewer' && record.verificationStage !== 'Externally Assured') return
       setRecords((current) => current.map((item) => item.id === id ? {
         ...item,
         status,
@@ -36,6 +39,19 @@ export function SustainabilityProvider({ children }: { children: ReactNode }) {
         createdAt: reviewedAt,
         read: false,
       }, ...current])
+    },
+    forwardToSustainabilityReview: (id, reviewer, reviewerDepartment, feedback, checks) => {
+      const record = records.find((item) => item.id === id)
+      if (!record || record.status !== 'Submitted' || record.reviewWorkflowStage !== 'Group Head Review' || record.inputterDepartment !== reviewerDepartment) return
+      const groupHeadReviewedAt = new Date().toISOString()
+      setRecords((current) => current.map((item) => item.id === id ? {
+        ...item,
+        reviewWorkflowStage: 'Sustainability Review',
+        groupHeadReviewedBy: reviewer,
+        groupHeadReviewedAt,
+        groupHeadReviewFeedback: feedback,
+        groupHeadReviewChecks: checks,
+      } : item))
     },
     updateVerificationStage: (id, stage, reviewer, reference) => {
       const record = records.find((item) => item.id === id)

@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import accessLogo from '../assets/brand/access-masterbrand.svg'
-import { canManageUsers } from '../data/users'
+import { canManageUsers, getInputterAllowedPillars } from '../data/users'
 import { useCurrentUser } from '../context/useCurrentUser'
 
 type NavigationItem = {
@@ -27,7 +27,7 @@ type NavigationItem = {
   hidden?: boolean
 }
 
-const navigationGroups: { label: string; items: NavigationItem[] }[] = [
+const navigationGroups: { label: string; items: NavigationItem[]; adminOnly?: boolean }[] = [
   {
     label: 'Workspace',
     items: [{ to: '/dashboard', label: 'Overview', icon: LayoutDashboard }],
@@ -44,8 +44,9 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   },
   {
     label: 'Manage',
+    adminOnly: true,
     items: [
-      { to: '/submissions', label: 'Submissions & reviews', icon: ClipboardList, hiddenForAdmin: true },
+      { to: '/submissions', label: 'Submissions & reviews', icon: ClipboardList },
       { to: '/reports', label: 'Reports & analytics', icon: BarChart3 },
       { to: '/setup-guide', label: 'Setup & guide', icon: Settings2 },
       { to: '/settings', label: 'Configuration', icon: Settings2, hidden: true },
@@ -67,6 +68,13 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { currentUser } = useCurrentUser()
   const isAdmin = canManageUsers(currentUser.role)
   const isCountryLeader = currentUser.role === 'Country Managing Director / Head of Subsidiary'
+  const inputterAllowedPillars = getInputterAllowedPillars(currentUser.role, currentUser.department)
+  const inputterAllowedPaths: string[] | null = inputterAllowedPillars?.map((pillar) => (
+    pillar === 'finance' ? '/development-finance'
+      : pillar === 'csi' ? '/corporate-social-investment'
+        : pillar === 'advocacy' ? '/thought-leadership-awards'
+          : '/operations'
+  )) ?? null
 
   return (
     <>
@@ -88,9 +96,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-5">
           {navigationGroups.map((group) => {
-            const items = group.items.filter((item) => item.nominationOnly
-              ? isCountryLeader
-              : !isCountryLeader && !item.hidden && (!item.adminOnly || isAdmin) && (!item.hiddenForAdmin || !isAdmin))
+            if (group.adminOnly && !isAdmin) return null
+            const items = group.items.filter((item) => inputterAllowedPaths
+              ? inputterAllowedPaths.includes(item.to)
+              : item.nominationOnly
+                ? isCountryLeader
+                : !isCountryLeader && !item.hidden && (!item.adminOnly || isAdmin) && (!item.hiddenForAdmin || !isAdmin))
             if (items.length === 0) return null
             return (
             <div key={group.label} className="mb-6 last:mb-0">

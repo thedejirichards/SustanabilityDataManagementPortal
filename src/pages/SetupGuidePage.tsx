@@ -226,7 +226,7 @@ export default function SetupGuidePage() {
         <div className="border-t border-slate-100 px-4 py-4 sm:px-5"><h3 className="text-xs font-bold text-slate-800">Rates and intensities · arithmetic average by measure</h3><div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">{ratesAndIntensities.map((metric) => <div key={metric.label} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5"><p className="text-xs text-slate-500">{metric.label}</p><p className="mt-1 text-sm font-semibold text-slate-800">{metric.value}</p></div>)}</div></div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      {currentUser.role !== 'Sustainability Reviewer' && <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><ShieldCheck className="h-4 w-4" /></span><div><h2 className="text-sm font-bold text-slate-900">Verification before sign-off</h2><p className="mt-1 text-xs leading-5 text-slate-500">Reviewers progress each record’s evidence through the stages below. The record approval action remains unavailable until external assurance is recorded.</p></div></div>
         <ol className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
           {[
@@ -235,7 +235,7 @@ export default function SetupGuidePage() {
             ['3 · Externally Assured', 'Record the assurance reference after independent assurance. Required before reviewer sign-off.'],
           ].map(([title, description]) => <li key={title} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"><p className="text-xs font-bold text-slate-800">{title}</p><p className="mt-1.5 text-xs leading-5 text-slate-500">{description}</p></li>)}
         </ol>
-      </section>
+      </section>}
 
       <p className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck className="h-4 w-4 text-brand-600" />Setup & calendar configuration is local to this demonstration workspace; production SSO, shared storage, assurance evidence retention and report scheduling services must be connected for Group-wide use.</p>
     </div>

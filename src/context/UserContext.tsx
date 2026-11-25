@@ -4,12 +4,16 @@ import { UserContext } from './userContextInstance'
 
 const STORAGE_KEY = 'sdm.currentUserId'
 
+function getDefaultUser(): AppUser {
+  return users.find((user) => user.id === 'reviewer') ?? users[0]
+}
+
 function loadInitialUser(): AppUser {
   try {
     const saved = window.sessionStorage.getItem(STORAGE_KEY)
-    return users.find((user) => user.id === saved) ?? users[0]
+    return users.find((user) => user.id === saved) ?? getDefaultUser()
   } catch {
-    return users[0]
+    return getDefaultUser()
   }
 }
 

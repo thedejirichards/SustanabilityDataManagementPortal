@@ -3,7 +3,7 @@ import { Ban, Check, CheckCircle2, Clock3, Eye, Mail, Pencil, Plus, RotateCcw, S
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
-import { appRoles, canManageUsers, userStatuses, type AppRole, type AppUser, type UserStatus } from '../data/users'
+import { appRoles, canManageUsers, dataInputterDepartments, userStatuses, type AppRole, type AppUser, type UserStatus } from '../data/users'
 import { countries } from '../data/sustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 import { useUsers } from '../context/useUsers'
@@ -11,7 +11,9 @@ import { useUsers } from '../context/useUsers'
 const PAGE_SIZE = 5
 
 const roleBadgeClasses: Record<AppRole, string> = {
-  'Data Contributor': 'bg-slate-100 text-slate-600',
+  'Data Inputter': 'bg-sky-50 text-sky-700',
+  'Group Head': 'bg-indigo-50 text-indigo-700',
+  'Sustainability Inputter': 'bg-emerald-50 text-emerald-700',
   'Sustainability Reviewer': 'bg-amber-50 text-amber-700',
   'Portal Administrator': 'bg-brand-50 text-brand-700',
   'Country Managing Director / Head of Subsidiary': 'bg-violet-50 text-violet-700',
@@ -47,7 +49,7 @@ interface UserFormModalProps {
 function UserFormModal({ open, onClose, editing, submitForApproval = false, onSubmit }: UserFormModalProps) {
   const [name, setName] = useState(editing?.name ?? '')
   const [email, setEmail] = useState(editing?.email ?? '')
-  const [role, setRole] = useState<AppRole>(editing?.role ?? 'Data Contributor')
+  const [role, setRole] = useState<AppRole>(editing?.role ?? 'Data Inputter')
   const [status, setStatus] = useState<UserStatus>(editing?.status ?? 'Invited')
   const [department, setDepartment] = useState(editing?.department ?? '')
   const [country, setCountry] = useState(editing?.country ?? '')
@@ -61,6 +63,7 @@ function UserFormModal({ open, onClose, editing, submitForApproval = false, onSu
     if (!email.trim()) next.email = 'Email is required.'
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) next.email = 'Enter a valid email address.'
     if (!department.trim()) next.department = 'Department is required.'
+    else if ((role === 'Data Inputter' || role === 'Group Head') && !dataInputterDepartments.includes(department as typeof dataInputterDepartments[number])) next.department = 'Select a department from the list.'
     if (role === 'Country Managing Director / Head of Subsidiary' && !country) next.country = 'Country is required for country leadership users.'
     if (role === 'Country Managing Director / Head of Subsidiary' && !subsidiary.trim()) next.subsidiary = 'Subsidiary / entity is required for country leadership users.'
     setErrors(next)
@@ -104,9 +107,13 @@ function UserFormModal({ open, onClose, editing, submitForApproval = false, onSu
             </label>
             <label className="block min-w-0">
               <span className="text-[11px] font-semibold text-slate-700">Role</span>
-              <select value={role} onChange={(event) => setRole(event.target.value as AppRole)} aria-label="Role" className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-brand-500">
+              <select value={role} onChange={(event) => {
+                const nextRole = event.target.value as AppRole
+                setRole(nextRole)
+              }} aria-label="Role" className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-brand-500">
                 {appRoles.map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
+              {role === 'Sustainability Inputter' && <span className="mt-1.5 block text-[10px] leading-4 text-slate-500">Submissions go directly to a Sustainability Reviewer; no Group Head approval is required.</span>}
             </label>
             <label className="block min-w-0">
               <span className="text-[11px] font-semibold text-slate-700">Status</span>
@@ -130,8 +137,15 @@ function UserFormModal({ open, onClose, editing, submitForApproval = false, onSu
               </label>
             </>}
             <label className="block min-w-0 sm:col-span-2">
-              <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">Department / unit <span className="text-rose-500">*</span></span>
-              <input value={department} onChange={(event) => setDepartment(event.target.value)} aria-label="Department" aria-invalid={Boolean(errors.department)} placeholder="e.g. Sustainability" className={`mt-1.5 w-full rounded-xl border bg-white px-3 py-2.5 text-xs outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${errors.department ? 'border-rose-400' : 'border-slate-200'}`} />
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">Department / function <span className="text-rose-500">*</span></span>
+              {role === 'Data Inputter' || role === 'Group Head' ? (
+                <select value={department} onChange={(event) => setDepartment(event.target.value)} aria-label="Department" aria-invalid={Boolean(errors.department)} className={`mt-1.5 h-10 w-full rounded-xl border bg-white px-3 text-xs text-slate-800 outline-none focus:border-brand-500 ${errors.department ? 'border-rose-400' : 'border-slate-200'}`}>
+                  <option value="">Select department / unit</option>
+                  {dataInputterDepartments.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              ) : (
+                <input value={department} onChange={(event) => setDepartment(event.target.value)} aria-label="Department" aria-invalid={Boolean(errors.department)} placeholder="e.g. Sustainability" className={`mt-1.5 w-full rounded-xl border bg-white px-3 py-2.5 text-xs outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${errors.department ? 'border-rose-400' : 'border-slate-200'}`} />
+              )}
               {errors.department && <span role="alert" className="mt-1 block text-[10px] font-medium text-rose-600">{errors.department}</span>}
             </label>
             <div className="mt-1 flex items-center justify-end gap-2 sm:col-span-2">
@@ -209,9 +223,10 @@ export default function UserManagementPage() {
     total: users.length,
     administrators: users.filter((user) => user.role === 'Portal Administrator').length,
     reviewers: users.filter((user) => user.role === 'Sustainability Reviewer').length,
-    contributors: users.filter((user) => user.role === 'Data Contributor').length,
+    groupHeads: users.filter((user) => user.role === 'Group Head').length,
+    sustainabilityInputters: users.filter((user) => user.role === 'Sustainability Inputter').length,
     countryLeaders: users.filter((user) => user.role === 'Country Managing Director / Head of Subsidiary').length,
-    active: users.filter((user) => user.status === 'Active').length,
+    dataInputters: users.filter((user) => user.role === 'Data Inputter').length,
   }
 
   return (
@@ -235,12 +250,14 @@ export default function UserManagementPage() {
         <p className="text-xs leading-5 text-brand-900"><span className="font-bold">Maker-checker control.</span> {isMaker ? 'As a portal admin maker, new user additions are submitted as requests for checker approval.' : isChecker ? 'As a portal admin checker, review and approve or reject pending user addition requests.' : 'Changes are applied to this browser session only. Production provisioning, Access SSO synchronization and email invites require the identity service.'}</p>
       </div>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Total users</p><p className="mt-1 text-2xl font-bold text-slate-900">{counts.total}</p><p className="mt-1 text-[10px] text-slate-400">In this workspace</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Administrators</p><p className="mt-1 text-2xl font-bold text-brand-700">{counts.administrators}</p><p className="mt-1 text-[10px] text-slate-400">Full portal access</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Reviewers</p><p className="mt-1 text-2xl font-bold text-amber-600">{counts.reviewers}</p><p className="mt-1 text-[10px] text-slate-400">Can review submissions</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Contributors</p><p className="mt-1 text-2xl font-bold text-slate-700">{counts.contributors}</p><p className="mt-1 text-[10px] text-slate-400">Submit data only · {counts.active} active</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Group heads</p><p className="mt-1 text-2xl font-bold text-indigo-700">{counts.groupHeads}</p><p className="mt-1 text-[10px] text-slate-400">First-stage review</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Sustainability inputters</p><p className="mt-1 text-2xl font-bold text-emerald-700">{counts.sustainabilityInputters}</p><p className="mt-1 text-[10px] text-slate-400">Direct reviewer approval</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Country leads</p><p className="mt-1 text-2xl font-bold text-violet-700">{counts.countryLeaders}</p><p className="mt-1 text-[10px] text-slate-400">Nominate local focal persons</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Data inputters</p><p className="mt-1 text-2xl font-bold text-sky-700">{counts.dataInputters}</p><p className="mt-1 text-[10px] text-slate-400">Access scoped by function</p></div>
       </section>
 
       {(isMaker || isChecker || pendingRequests.length > 0) && (

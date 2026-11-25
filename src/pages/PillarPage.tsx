@@ -1,10 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { ArrowRight, CircleHelp, Eye, FilePlus2, Plus, Search, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRight, ChevronDown, CircleHelp, Eye, FilePlus2, Plus, Search, Sparkles, Trash2, X } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import StatusBadge from '../components/StatusBadge'
-import { canReview, canSubmitRecords, formatPeriod, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord, type VerificationStage } from '../data/sustainability'
+import { canReview, canSubmitRecords, dataInputterBranchOptions, dataInputterFields, dataInputterUnitOptions, focusAreas, formatPeriod, getCsiInputterUnitOptions, getDataInputterFields, type FormField, type PillarDefinition, type RecordStatus, type SustainabilityRecord, type VerificationStage } from '../data/sustainability'
 import { useSustainability } from '../context/useSustainability'
 import { useCurrentUser } from '../context/useCurrentUser'
 import EvidenceFiles from '../components/EvidenceFiles'
@@ -12,6 +12,15 @@ import ReviewDecisionPanel from '../components/ReviewDecisionPanel'
 
 const PAGE_SIZE = 5
 const statusOptions: RecordStatus[] = ['Submitted', 'Approved', 'Rejected']
+const demoCategoryAliases: Record<string, string> = {
+  Diesel: 'Generator Fuel Consumption',
+  Electricity: 'Grid Electricity Consumption',
+  'Air travel': 'Business Travel Emissions',
+}
+
+function createRecordId(pillarKey: PillarDefinition['key']) {
+  return `SDM-${pillarKey.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`
+}
 
 function parseMultiText(value: string | undefined) {
   if (!value) return ['']
@@ -27,8 +36,26 @@ function parseMultiText(value: string | undefined) {
   return [value]
 }
 
+function parseMultiSelect(value: string | undefined) {
+  if (!value) return []
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item ?? '')).filter(Boolean)
+  } catch {
+    // legacy single value
+  }
+  return [value]
+}
+
 function formatMultiText(value: string | undefined) {
   return parseMultiText(value).map((item) => item.trim()).filter(Boolean).join('; ')
+}
+
+function reviewWorkflowLabel(record: SustainabilityRecord) {
+  if (record.status !== 'Submitted') return null
+  if (record.reviewWorkflowStage === 'Group Head Review') return 'Awaiting group head review'
+  if (record.reviewWorkflowStage === 'Sustainability Review') return 'Awaiting Sustainability review'
+  return null
 }
 
 function getOperationScope(record: SustainabilityRecord) {
@@ -53,12 +80,12 @@ function parseOption(option: string) {
   return separator === -1 ? { value: option, label: option } : { value: option.slice(0, separator), label: option.slice(separator + 1) }
 }
 
-function renderCell(record: SustainabilityRecord, key: string) {
+function renderCell(record: SustainabilityRecord, key: string, categoryLabel?: string) {
   if (key === 'period') return formatPeriod(record.period)
   if (key === 'country') return record.country
   if (key === 'location') return record.location
-  if (key === 'category') return record.category
-  if (key === 'status') return <StatusBadge status={record.status} />
+  if (key === 'category') return categoryLabel ?? record.category
+  if (key === 'status') return <span className="inline-flex flex-col items-start gap-1"><StatusBadge status={record.status} />{reviewWorkflowLabel(record) && <span className="text-[9px] font-medium text-slate-400">{reviewWorkflowLabel(record)}</span>}</span>
   if (key === 'scope') {
     const scope = getOperationScope(record)
     return <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{scope}</span>
@@ -68,6 +95,12 @@ function renderCell(record: SustainabilityRecord, key: string) {
     const unit = record.values.unit
     return value ? `${value} ${unit ?? ''}` : '—'
   }
+  if (key === 'reportedValue') {
+    const value = record.values.consumptionValue
+    const unit = record.values.unit
+    return value ? [value, unit].filter(Boolean).join(' ') : '—'
+  }
+  if (key === 'indicator') return record.values.indicator ?? '—'
   if (key === 'submittedBy') return record.submittedBy
   if (key === 'impact') return record.values.livesImpacted ?? record.values.participantsTotal ?? record.values.beneficiaries ?? record.values.participatingStaff ?? '—'
   return record.name
@@ -75,8 +108,8 @@ function renderCell(record: SustainabilityRecord, key: string) {
 
 function getColumns(pillar: PillarDefinition) {
   if (pillar.key === 'operations') return [{ key: 'name', label: 'Record' }, { key: 'category', label: 'Type' }, { key: 'scope', label: 'Scope' }, { key: 'unitValue', label: 'Source value' }, { key: 'location', label: 'Location' }, { key: 'period', label: 'Period' }, { key: 'status', label: 'Status' }]
-  if (pillar.key === 'finance') return [{ key: 'name', label: 'Customer / activity' }, { key: 'category', label: 'Finance type' }, { key: 'country', label: 'Country' }, { key: 'period', label: 'Period' }, { key: 'status', label: 'Status' }]
-  if (pillar.key === 'csi') return [{ key: 'name', label: 'Initiative' }, { key: 'category', label: 'Focus area' }, { key: 'location', label: 'Location' }, { key: 'impact', label: 'Lives impacted' }, { key: 'status', label: 'Status' }]
+  if (pillar.key === 'finance') return [{ key: 'name', label: 'Customer / activity' }, { key: 'category', label: 'Finance type' }, { key: 'reportedValue', label: 'Reported value' }, { key: 'country', label: 'Country' }, { key: 'period', label: 'Period' }, { key: 'status', label: 'Status' }]
+  if (pillar.key === 'csi') return [{ key: 'name', label: 'Initiative' }, { key: 'category', label: 'Focus area' }, { key: 'indicator', label: 'Indicator' }, { key: 'reportedValue', label: 'Reported value' }, { key: 'location', label: 'Location' }, { key: 'impact', label: 'Lives impacted' }, { key: 'status', label: 'Status' }]
   if (pillar.key === 'volunteering') return [{ key: 'name', label: 'Activity' }, { key: 'category', label: 'Learning area' }, { key: 'country', label: 'Country' }, { key: 'impact', label: 'Participants' }, { key: 'status', label: 'Status' }]
   return [{ key: 'name', label: 'Engagement / recognition' }, { key: 'category', label: 'Type' }, { key: 'location', label: 'Location' }, { key: 'period', label: 'Period' }, { key: 'status', label: 'Status' }]
 }
@@ -152,28 +185,107 @@ function BreakdownCard({ title, values }: { title: string; values: { label: stri
 }
 
 function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: () => void }) {
-  const { addRecord } = useSustainability()
+  const { addRecord, records } = useSustainability()
   const { currentUser } = useCurrentUser()
+  const isOperationsInputter = currentUser.role === 'Data Inputter' && pillar.key === 'operations'
+  const isFinanceInputter = pillar.key === 'finance' && (currentUser.role === 'Data Inputter' || currentUser.role === 'Sustainability Inputter')
+  const isCsiInputter = currentUser.role === 'Data Inputter' && pillar.key === 'csi'
+  const isAssignedFieldInputter = isOperationsInputter || isFinanceInputter || isCsiInputter
+  const inputterFunction = currentUser.role === 'Sustainability Inputter' ? 'Sustainability' : currentUser.department
+  const assignedInputterFields = isAssignedFieldInputter ? getDataInputterFields(inputterFunction, pillar.key) : []
+  const inputterBranchOptions = [...new Set([
+    ...dataInputterBranchOptions,
+    ...records.flatMap((record) => record.location.split(';').map((location) => location.trim())),
+  ])].filter(Boolean).sort()
+  const inputterFormFields: FormField[] = [
+    ...pillar.fields
+      .filter((field) => ['period', 'country', 'subsidiary', 'location'].includes(field.name) || ((pillar.key === 'finance' || pillar.key === 'csi') && field.name === 'businessUnit'))
+      .map((field) => field.name === 'location'
+        ? { ...field, type: 'multi-text' as const }
+        : field),
+    ...(isCsiInputter ? [{ name: 'focusArea', label: 'Focus Area', type: 'select' as const, required: true, options: focusAreas }] : []),
+    {
+      name: 'category',
+      label: pillar.key === 'finance' ? 'Sustainable finance field' : pillar.key === 'csi' ? 'Indicator' : 'Sustainability field',
+      type: 'select',
+      required: true,
+      options: assignedInputterFields.map((field) => `${field.name}|${field.name}`),
+    },
+    { name: 'unit', label: 'Unit of measurement', type: 'select', required: true, options: dataInputterUnitOptions.map((unit) => `${unit}|${unit}`) },
+    { name: 'consumptionValue', label: 'Reported value', type: 'text', required: true },
+    { name: 'supportingDocuments', label: 'Supporting document', type: 'file' },
+    { name: 'customUnit', label: 'Specify unit', type: 'text', required: true, fullWidth: true, showWhen: { field: 'unit', equals: 'Other' } },
+  ]
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [attachments, setAttachments] = useState<SustainabilityRecord['attachments']>([])
   const [saved, setSaved] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('Record submitted')
+  const [additionalLocations, setAdditionalLocations] = useState<string[]>([])
+  const [addingNewLocation, setAddingNewLocation] = useState(false)
+  const [newLocationDraft, setNewLocationDraft] = useState('')
+  const locationOptions = [...new Set([...inputterBranchOptions, ...additionalLocations])].filter(Boolean).sort()
+  const selectedCsiIndicator = isCsiInputter
+    ? assignedInputterFields.find((field) => field.focusArea === values.focusArea && field.name === values.category)
+    : undefined
+  const baseFormFields = isAssignedFieldInputter ? inputterFormFields : pillar.fields
+  const formFields = baseFormFields
+    .filter((field, index, fields) => field.name !== 'location' || fields.findIndex((candidate) => candidate.name === 'location') === index)
+    .map((field) => {
+    if (field.name === 'location' && field.type !== 'multi-text') return { ...field, type: 'multi-text' as const }
+    if (field.name === 'category' && isCsiInputter) {
+      return { ...field, options: assignedInputterFields.filter((assignedField) => assignedField.focusArea === values.focusArea).map((assignedField) => `${assignedField.name}|${assignedField.name}`) }
+    }
+    if (field.name === 'unit' && isCsiInputter) {
+      return { ...field, options: selectedCsiIndicator?.focusArea ? getCsiInputterUnitOptions(selectedCsiIndicator.focusArea, selectedCsiIndicator.name).map((unit) => `${unit}|${unit}`) : [] }
+    }
+    return field
+    })
+  const successMessage = 'Record submitted'
 
   function setValue(field: FormField, value: string) {
-    setValues((current) => ({ ...current, [field.name]: value }))
+    const resetCsiIndicator = isCsiInputter && field.name === 'focusArea'
+    const resetCsiUnit = isCsiInputter && (field.name === 'focusArea' || field.name === 'category')
+    setValues((current) => ({
+      ...current,
+      [field.name]: value,
+      ...(resetCsiIndicator ? { category: '' } : {}),
+      ...(resetCsiUnit ? { unit: '', customUnit: '' } : {}),
+    }))
     if (errors[field.name]) setErrors((current) => ({ ...current, [field.name]: '' }))
+    if (resetCsiIndicator || resetCsiUnit) setErrors((current) => ({ ...current, category: '', unit: '', customUnit: '' }))
   }
 
   function setMultiTextValue(field: FormField, items: string[]) {
     setValue(field, JSON.stringify(items))
   }
 
+  function addNewLocation(field: FormField) {
+    const draft = newLocationDraft.trim()
+    if (!draft) return
+    const location = locationOptions.find((option) => option.toLowerCase() === draft.toLowerCase()) ?? draft
+    if (!locationOptions.includes(location)) setAdditionalLocations((current) => [...current, location])
+    if (field.type === 'multi-select') {
+      const selected = parseMultiSelect(values.location)
+      setValue(field, JSON.stringify([...new Set([...selected, location])]))
+    } else if (field.type === 'multi-text') {
+      setMultiTextValue(field, [...parseMultiText(values.location).filter(Boolean), location])
+    } else {
+      setValue(field, location)
+    }
+    setNewLocationDraft('')
+    setAddingNewLocation(false)
+  }
+
   function validate() {
     const next: Record<string, string> = {}
-    for (const field of pillar.fields) {
+    for (const field of formFields) {
       if (!isFieldVisible(field, values)) continue
       const raw = values[field.name] ?? ''
+      if (field.type === 'multi-select') {
+        const selected = parseMultiSelect(raw)
+        if (field.required && selected.length === 0) next[field.name] = `Select at least one ${field.label.toLowerCase()}.`
+        continue
+      }
       if (field.type === 'multi-text') {
         const items = parseMultiText(raw).map((item) => item.trim()).filter(Boolean)
         if (field.required && items.length === 0) next[field.name] = `${field.label} requires at least one value.`
@@ -191,21 +303,30 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
     event.preventDefault()
     if (!validate()) return
 
-    const category = values.category || pillar.categories[0]
-    const locationField = pillar.fields.find((field) => field.name === 'location')
+    const indicator = values.category || pillar.categories[0]
+    const category = isCsiInputter ? values.focusArea || pillar.categories[0] : indicator
+    const locationField = formFields.find((field) => field.name === 'location')
     const location = locationField?.type === 'multi-text'
       ? formatMultiText(values.location)
       : (values.location || values.implementationLocation || values.eventLocation || '')
     const period = values.period || ''
     const namedValue = values.name?.trim()
-    const normalizedValues: Record<string, string> = { ...values, category }
+    const normalizedValues: Record<string, string> = { ...values, category, ...(isCsiInputter ? { indicator } : {}) }
+    if (isAssignedFieldInputter) {
+      if (isOperationsInputter) {
+        const scope = category.match(/Scope ([123])/i)?.[1]
+        normalizedValues.scope = scope ? `Scope ${scope}` : 'Non-GHG operational KPI'
+      }
+      normalizedValues.unit = values.unit === 'Other' ? values.customUnit.trim() : values.unit
+      delete normalizedValues.customUnit
+    }
     if (locationField?.type === 'multi-text') {
       normalizedValues.location = JSON.stringify(parseMultiText(values.location).map((item) => item.trim()).filter(Boolean))
     }
     const record: SustainabilityRecord = {
-      id: `SDM-${pillar.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+      id: createRecordId(pillar.key),
       pillar: pillar.key,
-      name: namedValue || `${category} · ${location || values.productType || 'New record'}`,
+      name: namedValue || `${isCsiInputter ? `${category} · ${indicator} · ` : `${category} · `}${location || values.productType || 'New record'}`,
       category,
       period,
       country: values.country || '',
@@ -218,37 +339,40 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
       values: normalizedValues,
       attachments,
       verificationStage: 'Unverified',
+      ...(currentUser.role === 'Data Inputter'
+        ? { reviewWorkflowStage: 'Group Head Review' as const, inputterDepartment: currentUser.department }
+        : currentUser.role === 'Sustainability Inputter'
+          ? { reviewWorkflowStage: 'Sustainability Review' as const }
+          : {}),
     }
     addRecord(record)
     setSaved(true)
   }
 
-  function addDemoRecord() {
-    const values = demoFormValues[pillar.key]
-    const category = values.category || pillar.categories[0]
-    const locationField = pillar.fields.find((field) => field.name === 'location')
-    const location = locationField?.type === 'multi-text'
-      ? formatMultiText(values.location)
-      : (values.location || values.implementationLocation || values.eventLocation || '')
-    const record: SustainabilityRecord = {
-      id: `SDM-${pillar.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
-      pillar: pillar.key,
-      name: values.name?.trim() || `${category} · ${location || values.productType || 'Demo record'}`,
-      category,
-      period: values.period,
-      country: values.country,
-      subsidiary: values.subsidiary,
-      businessUnit: values.businessUnit,
-      location,
-      status: 'Submitted',
-      submittedBy: currentUser.name,
-      submittedAt: new Date().toISOString().slice(0, 10),
-      values,
-      verificationStage: 'Unverified',
+  function fillTestData() {
+    if (isAssignedFieldInputter) {
+      const assignedField = assignedInputterFields[0]
+      if (!assignedField) return
+      const location = inputterBranchOptions[0] ?? 'Demo branch'
+      setValues({
+        period: '2026-10',
+        country: 'Nigeria',
+        subsidiary: 'Access Bank',
+        ...(pillar.key === 'finance' ? { businessUnit: 'Corporate Banking' } : pillar.key === 'csi' ? { businessUnit: 'Sustainability' } : {}),
+        location: JSON.stringify([location]),
+        ...(isCsiInputter && assignedField.focusArea ? { focusArea: assignedField.focusArea } : {}),
+        category: assignedField.name,
+        consumptionValue: 'Demo data',
+        unit: isCsiInputter && assignedField.focusArea
+          ? getCsiInputterUnitOptions(assignedField.focusArea, assignedField.name)[0] ?? 'Count'
+          : 'Not applicable',
+      })
+      setErrors({})
+      return
     }
-    addRecord(record)
-    setSuccessMessage('Demo record added')
-    setSaved(true)
+
+    setValues({ ...demoFormValues[pillar.key] })
+    setErrors({})
   }
 
   if (saved) {
@@ -266,12 +390,15 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
     <>
       <div className="mb-5 pr-7">
         <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-brand-700">{pillar.shortTitle}</span>
-        <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-900">{pillar.formTitle}</h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">{pillar.formDescription}</p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">{isAssignedFieldInputter ? 'Add a sustainability record' : pillar.formTitle}</h2>
+          <button type="button" onClick={fillTestData} className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg px-2.5 py-2 text-[10px] font-semibold text-brand-700 transition hover:bg-brand-50 sm:self-auto"><Sparkles className="h-3.5 w-3.5" /> Fill test / dummy data</button>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{isCsiInputter ? 'Choose a Focus Area, then one of its assigned Indicators.' : isAssignedFieldInputter ? `Choose a field assigned to ${inputterFunction}; only your function’s fields are available.` : pillar.formDescription}</p>
       </div>
       <form onSubmit={submit} noValidate>
         <div className="grid grid-cols-1 gap-x-4 gap-y-3.5 sm:grid-cols-2">
-          {pillar.fields.filter((field) => isFieldVisible(field, values)).map((field) => {
+          {formFields.filter((field) => isFieldVisible(field, values)).map((field) => {
             const value = values[field.name] ?? ''
             const invalid = Boolean(errors[field.name])
             const controlClass = `mt-1.5 w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${invalid ? 'border-rose-400' : 'border-slate-200'}`
@@ -280,7 +407,6 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
                 <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
                   {field.label}{field.required && <span className="text-rose-500">*</span>}
                 </span>
-                {field.hint && <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">{field.hint}</span>}
                 {field.type === 'select' ? (
                   <select value={value} onChange={(event) => setValue(field, event.target.value)} aria-label={field.label} aria-invalid={invalid} className={controlClass}>
                     <option value="">Select {field.label.toLowerCase()}</option>
@@ -292,26 +418,72 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
                 ) : field.type === 'textarea' ? (
                   <textarea value={value} onChange={(event) => setValue(field, event.target.value)} aria-label={field.label} aria-invalid={invalid} rows={3} className={`${controlClass} resize-y`} />
                 ) : field.type === 'file' ? (
-                  <span className={`mt-1.5 flex min-h-10 items-center rounded-xl border border-dashed px-3 py-2.5 ${invalid ? 'border-rose-400' : 'border-slate-300'}`}>
-                    <input type="file" aria-label={field.label} onChange={(event) => setValue(field, event.target.files?.[0]?.name ?? '')} className="block w-full text-[10px] text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-2.5 file:py-1.5 file:text-[10px] file:font-semibold file:text-brand-700" />
-                  </span>
+                  field.name === 'supportingDocuments' ? (
+                    <div className={`mt-1.5 rounded-xl border border-dashed bg-white px-3 py-2.5 ${invalid ? 'border-rose-400' : 'border-slate-300'}`}>
+                      <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip" aria-label={field.label} onChange={(event) => {
+                        const files = Array.from(event.target.files ?? [])
+                        setAttachments((current) => [...(current ?? []), ...files.map((file, index) => ({ id: `${Date.now()}-${index}-${file.name}`, name: file.name, type: file.type, size: file.size, file }))])
+                      }} className="block w-full text-[10px] text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-2.5 file:py-1.5 file:text-[10px] file:font-semibold file:text-brand-700" />
+                    </div>
+                  ) : (
+                    <span className={`mt-1.5 flex min-h-10 items-center rounded-xl border border-dashed px-3 py-2.5 ${invalid ? 'border-rose-400' : 'border-slate-300'}`}>
+                      <input type="file" aria-label={field.label} onChange={(event) => setValue(field, event.target.files?.[0]?.name ?? '')} className="block w-full text-[10px] text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-2.5 file:py-1.5 file:text-[10px] file:font-semibold file:text-brand-700" />
+                    </span>
+                  )
+                ) : field.type === 'multi-select' ? (
+                  <details className="relative mt-1.5">
+                    <summary aria-label={field.label} aria-invalid={invalid} className={`flex h-10 list-none cursor-pointer items-center justify-between rounded-xl border bg-white px-3 text-xs outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 [&::-webkit-details-marker]:hidden ${invalid ? 'border-rose-400' : 'border-slate-200'}`}>
+                      <span className="truncate text-slate-700">{parseMultiSelect(value).length === 0 ? `Select ${field.label.toLowerCase()}` : parseMultiSelect(value).length === 1 ? parseMultiSelect(value)[0] : `${parseMultiSelect(value).length} branches selected`}</span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-slate-400" />
+                    </summary>
+                    <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                      {field.options?.map((option) => {
+                        const parsed = parseOption(option)
+                        const selected = parseMultiSelect(value)
+                        return <label key={parsed.value} className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-slate-700 hover:bg-slate-50">
+                          <input type="checkbox" checked={selected.includes(parsed.value)} onChange={(event) => {
+                            const next = event.target.checked ? [...selected, parsed.value] : selected.filter((item) => item !== parsed.value)
+                            setValue(field, JSON.stringify(next))
+                          }} className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                          <span>{parsed.label}</span>
+                        </label>
+                      })}
+                    </div>
+                  </details>
                 ) : field.type === 'multi-text' ? (
                   <div className="mt-1.5 space-y-2">
                     {parseMultiText(value).map((item, index, items) => (
                       <div key={`${field.name}-${index}`} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={item}
-                          onChange={(event) => {
-                            const next = [...items]
-                            next[index] = event.target.value
-                            setMultiTextValue(field, next)
-                          }}
-                          aria-label={`${field.label} ${index + 1}`}
-                          aria-invalid={invalid}
-                          placeholder={`${field.label} ${index + 1}`}
-                          className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${invalid ? 'border-rose-400' : 'border-slate-200'}`}
-                        />
+                        {field.name === 'location' ? (
+                          <select
+                            value={item}
+                            onChange={(event) => {
+                              const next = [...items]
+                              next[index] = event.target.value
+                              setMultiTextValue(field, next)
+                            }}
+                            aria-label={`${field.label} ${index + 1}`}
+                            aria-invalid={invalid}
+                            className={`h-10 w-full rounded-xl border bg-white px-3 text-xs text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${invalid ? 'border-rose-400' : 'border-slate-200'}`}
+                          >
+                            <option value="">Select location / branch</option>
+                            {locationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={item}
+                            onChange={(event) => {
+                              const next = [...items]
+                              next[index] = event.target.value
+                              setMultiTextValue(field, next)
+                            }}
+                            aria-label={`${field.label} ${index + 1}`}
+                            aria-invalid={invalid}
+                            placeholder={`${field.label} ${index + 1}`}
+                            className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${invalid ? 'border-rose-400' : 'border-slate-200'}`}
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -325,49 +497,62 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
                         </button>
                       </div>
                     ))}
-                    <button
+                    {field.name !== 'location' && <button
                       type="button"
                       onClick={() => setMultiTextValue(field, [...parseMultiText(value), ''])}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-brand-200 px-3 py-2 text-[10px] font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-50"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add {field.name === 'audienceGroups' ? 'audience group' : 'location / branch'}
-                    </button>
+                      <Plus className="h-3.5 w-3.5" /> Add audience group
+                    </button>}
                   </div>
                 ) : (
                   <input type={field.type} min={field.min} step={field.step} value={value} onChange={(event) => setValue(field, event.target.value)} aria-label={field.label} aria-invalid={invalid} className={controlClass} />
+                )}
+                {field.name === 'location' && (
+                  <div className="mt-2">
+                    {addingNewLocation ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="text"
+                          value={newLocationDraft}
+                          onChange={(event) => setNewLocationDraft(event.target.value)}
+                          aria-label="New location / branch"
+                          placeholder="Enter a location / branch"
+                          className="h-9 min-w-48 flex-1 rounded-lg border border-slate-200 px-3 text-xs outline-none focus:border-brand-500"
+                        />
+                        <button type="button" onClick={() => addNewLocation(field)} disabled={!newLocationDraft.trim()} className="inline-flex h-9 items-center gap-1 rounded-lg bg-brand-600 px-3 text-[10px] font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"><Plus className="h-3 w-3" /> Save location</button>
+                        <button type="button" onClick={() => { setNewLocationDraft(''); setAddingNewLocation(false) }} className="h-9 rounded-lg border border-slate-200 px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setAddingNewLocation(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-brand-200 px-3 py-2 text-[10px] font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-50"><Plus className="h-3.5 w-3.5" /> Add location / branch</button>
+                    )}
+                  </div>
                 )}
                 {invalid && <span role="alert" className="mt-1 block text-[10px] font-medium text-rose-600">{errors[field.name]}</span>}
               </div>
             )
           })}
         </div>
-        <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5" aria-label="Supporting evidence upload">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">Supporting evidence</h3>
-              <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">Attach source documents for this metric, including photos, videos, spreadsheets, PDFs and other relevant files. Reviewers can open the files alongside your submission.</p>
-            </div>
-            <label className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-brand-200 bg-white px-4 text-xs font-semibold text-brand-700 hover:bg-brand-50">
-              Add files
-              <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip" onChange={(event) => {
-                const files = Array.from(event.target.files ?? [])
-                setAttachments((current) => [...(current ?? []), ...files.map((file, index) => ({ id: `${Date.now()}-${index}-${file.name}`, name: file.name, type: file.type, size: file.size, file }))])
-                event.target.value = ''
-              }} className="sr-only" aria-label="Attach supporting files" />
-            </label>
-          </div>
-          {attachments && attachments.length > 0 && <ul className="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+        {!isAssignedFieldInputter && <div className="mt-5">
+          <label className="block">
+            <span className="mb-1.5 block text-[11px] font-semibold text-slate-700">Supporting document</span>
+            <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip" onChange={(event) => {
+              const files = Array.from(event.target.files ?? [])
+              setAttachments((current) => [...(current ?? []), ...files.map((file, index) => ({ id: `${Date.now()}-${index}-${file.name}`, name: file.name, type: file.type, size: file.size, file }))])
+              event.target.value = ''
+            }} className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-[10px] file:font-semibold file:text-brand-700 hover:file:bg-brand-100" aria-label="Attach supporting files" />
+          </label>
+        </div>}
+        {!isAssignedFieldInputter && attachments && attachments.length > 0 && <ul className="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
             {attachments.map((attachment) => <li key={attachment.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
               <span className="min-w-0"><span className="block truncate text-xs font-semibold text-slate-700">{attachment.name}</span><span className="text-xs text-slate-500">{(attachment.size / 1024).toFixed(0)} KB</span></span>
               <button type="button" onClick={() => setAttachments((current) => current?.filter((item) => item.id !== attachment.id))} className="rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-600" aria-label={`Remove ${attachment.name}`}><Trash2 className="h-4 w-4" /></button>
             </li>)}
-          </ul>}
-        </section>
+        </ul>}
         <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-100 pt-4">
           <p className="text-[10px] text-slate-400">* Required fields · Demo data is held in memory only.</p>
           <div className="flex shrink-0 items-center gap-2">
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-            <button type="button" onClick={addDemoRecord} className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-brand-700 hover:bg-brand-50"><Sparkles className="h-3.5 w-3.5" /> Add demo record</button>
             <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700">Submit record <ArrowRight className="h-3.5 w-3.5" /></button>
           </div>
         </div>
@@ -376,7 +561,12 @@ function RecordForm({ pillar, onClose }: { pillar: PillarDefinition; onClose: ()
   )
 }
 
-function RecordDetails({ record, pillar, canAct, onStatusChange, onVerificationStageChange }: { record: SustainabilityRecord; pillar: PillarDefinition; canAct: boolean; onStatusChange: (next: RecordStatus, feedback: string, checks: string[]) => void; onVerificationStageChange: (stage: VerificationStage, reference?: string) => void }) {
+function RecordDetails({ record, pillar, canAct, isGroupHead, showEvidenceVerification, onStatusChange, onVerificationStageChange, onForwardToSustainabilityReview }: { record: SustainabilityRecord; pillar: PillarDefinition; canAct: boolean; isGroupHead: boolean; showEvidenceVerification: boolean; onStatusChange: (next: RecordStatus, feedback: string, checks: string[]) => void; onVerificationStageChange: (stage: VerificationStage, reference?: string) => void; onForwardToSustainabilityReview: (feedback: string, checks: string[]) => void }) {
+  const inputterField = dataInputterFields.find((field) => field.pillar === record.pillar && (
+    record.pillar === 'csi'
+      ? field.focusArea === record.category && field.name === record.values.indicator
+      : field.name === record.category
+  ))
   const common = [
     { label: 'Record ID', value: record.id },
     { label: 'Reporting period', value: formatPeriod(record.period) },
@@ -387,9 +577,11 @@ function RecordDetails({ record, pillar, canAct, onStatusChange, onVerificationS
     { label: 'Submitted by', value: record.submittedBy },
     { label: 'Sustainability reviewer', value: record.reviewedBy ?? 'Not reviewed' },
     { label: 'Reviewed on', value: record.reviewedAt ? new Date(record.reviewedAt).toLocaleString() : '—' },
-    { label: 'Evidence verification', value: record.verificationStage ?? 'Unverified' },
-    { label: 'Verification updated by', value: record.verificationUpdatedBy ?? '—' },
-    { label: 'External assurance reference', value: record.verificationReference ?? '—' },
+    ...(showEvidenceVerification ? [
+      { label: 'Evidence verification', value: record.verificationStage ?? 'Unverified' },
+      { label: 'Verification updated by', value: record.verificationUpdatedBy ?? '—' },
+      { label: 'External assurance reference', value: record.verificationReference ?? '—' },
+    ] : []),
   ]
   const fields = pillar.fields.filter((field) => !['period', 'country', 'subsidiary', 'businessUnit', 'location'].includes(field.name))
   return (
@@ -410,21 +602,29 @@ function RecordDetails({ record, pillar, canAct, onStatusChange, onVerificationS
               <dd className="mt-0.5 break-words text-xs font-medium text-slate-700">{field.type === 'multi-text' ? formatMultiText(record.values[field.name]) : record.values[field.name]}</dd>
             </div>
           ))}
+          {record.values.indicator && <div><dt className="text-[10px] text-slate-400">Indicator</dt><dd className="mt-0.5 break-words text-xs font-medium text-slate-700">{record.values.indicator}</dd></div>}
+          {record.pillar !== 'csi' && inputterField?.definition && <div className="sm:col-span-2"><dt className="text-[10px] text-slate-400">Field definition · {inputterField.responsibleFunctions.join(' / ')}</dt><dd className="mt-0.5 break-words text-xs font-medium text-slate-700">{inputterField.definition}</dd></div>}
+          {record.values.consumptionValue && <div><dt className="text-[10px] text-slate-400">Reported value</dt><dd className="mt-0.5 break-words text-xs font-medium text-slate-700">{[record.values.consumptionValue, record.values.unit].filter(Boolean).join(' ')}</dd></div>}
         </dl>
         <EvidenceFiles attachments={record.attachments} />
         {record.reviewFeedback && <div className={`mt-4 rounded-xl border px-3.5 py-3 ${record.status === 'Rejected' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}><p className="text-xs font-bold">{record.status === 'Rejected' ? 'Reviewer feedback' : 'Review note'}</p><p className="mt-1 text-xs leading-5">{record.reviewFeedback}</p></div>}
       </div>
+      {record.groupHeadReviewedBy && <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-3.5 py-3">
+        <p className="text-xs font-bold text-indigo-900">Group head review completed</p>
+        <p className="mt-1 text-xs text-indigo-800">Forwarded by {record.groupHeadReviewedBy}{record.groupHeadReviewedAt ? ` · ${new Date(record.groupHeadReviewedAt).toLocaleString()}` : ''}</p>
+        {record.groupHeadReviewFeedback && <p className="mt-1 text-xs leading-5 text-indigo-800">{record.groupHeadReviewFeedback}</p>}
+      </div>}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
         <p className="text-[10px] text-slate-400">Submitted {record.submittedAt} · Demonstration record</p>
         {!canAct && <p className="text-xs text-slate-500">Reviewer decision: {record.reviewedBy ?? 'Awaiting designated reviewer'}{record.reviewedAt ? ` · ${new Date(record.reviewedAt).toLocaleDateString()}` : ''}</p>}
       </div>
-      {canAct && record.status === 'Submitted' && <ReviewDecisionPanel verificationStage={record.verificationStage ?? 'Unverified'} verificationReference={record.verificationReference} onVerificationStageChange={onVerificationStageChange} onDecision={onStatusChange} />}
+      {canAct && record.status === 'Submitted' && <ReviewDecisionPanel verificationStage={record.verificationStage ?? 'Unverified'} verificationReference={record.verificationReference} showEvidenceVerification={showEvidenceVerification} approvalButtonLabel={isGroupHead ? 'Forward to Sustainability Reviewer' : undefined} onApproval={isGroupHead ? onForwardToSustainabilityReview : undefined} onVerificationStageChange={onVerificationStageChange} onDecision={onStatusChange} />}
     </div>
   )
 }
 
 export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
-  const { records, updateStatus, updateVerificationStage } = useSustainability()
+  const { records, updateStatus, updateVerificationStage, forwardToSustainabilityReview } = useSustainability()
   const { currentUser } = useCurrentUser()
   const canAddRecords = canSubmitRecords(currentUser.role)
   const canReviewRecords = canReview(currentUser.role)
@@ -437,15 +637,42 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
   const [selectedRecord, setSelectedRecord] = useState<SustainabilityRecord | null>(null)
   const Icon = pillar.icon
   const columns = getColumns(pillar)
+  const isDataInputter = currentUser.role === 'Data Inputter'
+  const isGroupHead = currentUser.role === 'Group Head'
+  const isSustainabilityFinanceInputter = currentUser.role === 'Sustainability Inputter' && pillar.key === 'finance'
+  const isCsiDepartmentUser = (isDataInputter || isGroupHead) && pillar.key === 'csi'
+  const isCorporateCommunicationsUser = (isDataInputter || isGroupHead) && currentUser.department === 'Corporate Communications' && pillar.key === 'advocacy'
+  const isDepartmentScopedUser = ((isDataInputter || isGroupHead) && !isCorporateCommunicationsUser) || isSustainabilityFinanceInputter
+  const inputterFunction = currentUser.role === 'Sustainability Inputter' ? 'Sustainability' : currentUser.department
+  const permittedKpiNames = useMemo(() => new Set(getDataInputterFields(inputterFunction, pillar.key).map((field) => field.name)), [inputterFunction, pillar.key])
 
-  const pillarRecords = useMemo(() => records.filter((record) => record.pillar === pillar.key), [records, pillar.key])
+  const pillarRecords = useMemo(() => records.filter((record) => {
+    if (record.pillar !== pillar.key) return false
+    if (isGroupHead && (record.reviewWorkflowStage !== 'Group Head Review' || record.inputterDepartment !== currentUser.department)) return false
+    if (currentUser.role === 'Sustainability Reviewer' && record.reviewWorkflowStage === 'Group Head Review') return false
+    if (!isDepartmentScopedUser) return true
+    const inputterKpi = isCsiDepartmentUser ? record.values.indicator : demoCategoryAliases[record.category] ?? record.category
+    return permittedKpiNames.has(inputterKpi)
+  }), [records, pillar.key, currentUser.role, currentUser.department, isGroupHead, isDepartmentScopedUser, isCsiDepartmentUser, permittedKpiNames])
+  const categories = useMemo(() => {
+    const visibleCategories = isDepartmentScopedUser
+      ? isCsiDepartmentUser
+        ? focusAreas
+        : [...new Set([...permittedKpiNames, ...pillarRecords.map((record) => demoCategoryAliases[record.category] ?? record.category)])]
+      : [...new Set([...pillar.categories, ...pillarRecords.map((record) => record.category)])]
+    return visibleCategories.map((value) => ({ value, label: value }))
+  }, [isDepartmentScopedUser, isCsiDepartmentUser, permittedKpiNames, pillar.categories, pillarRecords])
+  const categoryFilterLabel = isDepartmentScopedUser
+    ? pillar.key === 'finance' ? 'finance field' : isCsiDepartmentUser ? 'focus area' : 'sustainability field'
+    : pillar.categoryLabel.toLowerCase()
   const filteredRecords = useMemo(() => pillarRecords.filter((record) => {
     const haystack = [record.id, record.name, record.category, record.country, record.subsidiary, record.location, record.submittedBy].join(' ').toLowerCase()
+    const recordCategory = isCsiDepartmentUser ? record.category : isDepartmentScopedUser ? demoCategoryAliases[record.category] ?? record.category : record.category
     return (period === 'all' || record.period === period)
       && (status === 'all' || record.status === status)
-      && (category === 'all' || record.category === category)
+      && (category === 'all' || recordCategory === category)
       && haystack.includes(search.toLowerCase().trim())
-  }), [pillarRecords, period, status, category, search])
+  }), [pillarRecords, period, status, category, search, isDepartmentScopedUser, isCsiDepartmentUser])
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE))
   const pageRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const approvedCount = pillarRecords.filter((record) => record.status === 'Approved').length
@@ -468,8 +695,21 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
 
   function applyReviewDecision(next: RecordStatus, feedback: string, checks: string[]) {
     if (!selectedRecord) return
-    updateStatus(selectedRecord.id, next, currentUser.name, feedback, checks)
+    updateStatus(selectedRecord.id, next, currentUser.name, feedback, checks, currentUser.role)
     setSelectedRecord((current) => current ? { ...current, status: next, reviewedBy: currentUser.name, reviewedAt: new Date().toISOString(), reviewFeedback: feedback, reviewChecks: checks } : current)
+  }
+
+  function forwardSelectedRecord(feedback: string, checks: string[]) {
+    if (!selectedRecord) return
+    forwardToSustainabilityReview(selectedRecord.id, currentUser.name, currentUser.department, feedback, checks)
+    setSelectedRecord((current) => current?.id === selectedRecord.id ? {
+      ...current,
+      reviewWorkflowStage: 'Sustainability Review',
+      groupHeadReviewedBy: currentUser.name,
+      groupHeadReviewedAt: new Date().toISOString(),
+      groupHeadReviewFeedback: feedback,
+      groupHeadReviewChecks: checks,
+    } : current)
   }
 
   function applyVerificationStage(next: VerificationStage, reference?: string) {
@@ -545,7 +785,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
               <span className="pointer-events-none absolute right-2 top-2 text-slate-400">⌄</span>
             </label>
             <label className="relative">
-              <select value={category} onChange={(event) => resetPageAndSet(setCategory, event.target.value)} aria-label={`Filter by ${pillar.categoryLabel.toLowerCase()}`} className="h-8 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[10px] font-medium text-slate-600 outline-none focus:border-brand-500"><option value="all">All {pillar.categoryLabel.toLowerCase()}s</option>{pillar.categories.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+              <select value={category} onChange={(event) => resetPageAndSet(setCategory, event.target.value)} aria-label={`Filter by ${categoryFilterLabel}`} className="h-8 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[10px] font-medium text-slate-600 outline-none focus:border-brand-500"><option value="all">All {categoryFilterLabel}s</option>{categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
               <span className="pointer-events-none absolute right-2 top-2 text-slate-400">⌄</span>
             </label>
             <label className="relative">
@@ -558,15 +798,16 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[750px] text-left">
-            <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{columns.map((column) => <th key={column.key} className="px-4 py-3 first:pl-5 last:pr-5">{column.label}</th>)}<th className="px-5 py-3 text-right"> </th></tr></thead>
+            <thead><tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400"><th className="px-5 py-3">S/N</th>{columns.map((column) => <th key={column.key} className="px-4 py-3 first:pl-5 last:pr-5">{column.label}</th>)}<th className="px-5 py-3 text-right"> </th></tr></thead>
             <tbody>
-              {pageRecords.map((record) => (
+              {pageRecords.map((record, index) => (
                 <tr key={record.id} className="border-t border-slate-100 transition-colors hover:bg-slate-50/70">
-                  {columns.map((column) => <td key={column.key} className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600 first:pl-5">{renderCell(record, column.key)}</td>)}
+                  <td className="whitespace-nowrap px-5 py-3.5 text-xs font-medium text-slate-400">{(page - 1) * PAGE_SIZE + index + 1}</td>
+                  {columns.map((column) => <td key={column.key} className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-600 first:pl-5">{renderCell(record, column.key, isDepartmentScopedUser ? demoCategoryAliases[record.category] : undefined)}</td>)}
                   <td className="whitespace-nowrap px-5 py-3.5 text-right"><button type="button" onClick={() => setSelectedRecord(record)} className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-brand-600 hover:text-brand-800"><Eye className="h-3.5 w-3.5" /> Details</button></td>
                 </tr>
               ))}
-              {pageRecords.length === 0 && <tr><td colSpan={columns.length + 1} className="px-5 py-14 text-center"><span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Search className="h-4 w-4" /></span><p className="mt-3 text-xs font-semibold text-slate-700">No records found</p><p className="mt-1 text-[10px] text-slate-400">Try adjusting the search or filters.</p></td></tr>}
+              {pageRecords.length === 0 && <tr><td colSpan={columns.length + 2} className="px-5 py-14 text-center"><span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Search className="h-4 w-4" /></span><p className="mt-3 text-xs font-semibold text-slate-700">No records found</p><p className="mt-1 text-[10px] text-slate-400">Try adjusting the search or filters.</p></td></tr>}
             </tbody>
           </table>
         </div>
@@ -574,7 +815,7 @@ export default function PillarPage({ pillar }: { pillar: PillarDefinition }) {
       </section>
 
       {canAddRecords && <Modal open={formOpen} onClose={closeForm} label={pillar.formTitle}><RecordForm pillar={pillar} onClose={closeForm} /></Modal>}
-      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} canAct={canReviewRecords} onStatusChange={applyReviewDecision} onVerificationStageChange={applyVerificationStage} />}</Modal>
+      <Modal open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)} label={selectedRecord?.name ?? 'Record details'}>{selectedRecord && <RecordDetails record={selectedRecord} pillar={pillar} canAct={canReviewRecords && (selectedRecord.reviewWorkflowStage !== 'Sustainability Review' || currentUser.role === 'Sustainability Reviewer') && (!isGroupHead || (selectedRecord.reviewWorkflowStage === 'Group Head Review' && selectedRecord.inputterDepartment === currentUser.department))} isGroupHead={isGroupHead} showEvidenceVerification={currentUser.role !== 'Sustainability Reviewer' && !isGroupHead} onStatusChange={applyReviewDecision} onVerificationStageChange={applyVerificationStage} onForwardToSustainabilityReview={forwardSelectedRecord} />}</Modal>
     </div>
   )
 }

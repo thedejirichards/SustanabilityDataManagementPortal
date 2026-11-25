@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bell, ChevronDown, Check, Menu, Moon, Sun } from 'lucide-react'
-import { canReview, pillars } from '../data/sustainability'
+import { pillars } from '../data/sustainability'
+import { canManageUsers } from '../data/users'
 import { useCurrentUser } from '../context/useCurrentUser'
 import { useUsers } from '../context/useUsers'
 import { useSustainability } from '../context/useSustainability'
@@ -31,6 +32,7 @@ export default function Header({ onMenuClick, darkMode, onToggleDarkMode }: Head
   const location = useLocation()
   const title = pillars.find((pillar) => pillar.path === location.pathname)?.title ?? pageTitles[location.pathname] ?? 'Sustainability portal'
   const pendingCount = records.filter((record) => record.status === 'Submitted').length
+  const canReviewFinalSubmissions = currentUser.role === 'Sustainability Reviewer' || canManageUsers(currentUser.role)
   const myNotifications = notifications.filter((notification) => notification.recipient === currentUser.name)
   const unreadCount = myNotifications.filter((notification) => !notification.read).length
 
@@ -50,7 +52,7 @@ export default function Header({ onMenuClick, darkMode, onToggleDarkMode }: Head
         <div className="relative">
           <button type="button" aria-label={`${unreadCount} unread review notifications`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((value) => !value)} className="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-600">
             <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
-            {(unreadCount > 0 || (canReview(currentUser.role) && pendingCount > 0)) && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[9px] font-bold text-white">{unreadCount || pendingCount}</span>}
+            {(unreadCount > 0 || (canReviewFinalSubmissions && pendingCount > 0)) && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[9px] font-bold text-white">{unreadCount || pendingCount}</span>}
           </button>
           {notificationsOpen && <>
             <button aria-label="Close notifications" className="fixed inset-0 z-10 cursor-default" onClick={() => setNotificationsOpen(false)} />
@@ -66,7 +68,7 @@ export default function Header({ onMenuClick, darkMode, onToggleDarkMode }: Head
                   </Link>
                 ))}
               </div>
-              {canReview(currentUser.role) && <Link to="/submissions" onClick={() => setNotificationsOpen(false)} className="block border-t border-slate-100 bg-slate-50 px-4 py-3 text-center text-xs font-semibold text-brand-700 hover:bg-brand-50">Open submission review queue ({pendingCount} awaiting)</Link>}
+              {canReviewFinalSubmissions && <Link to="/submissions" onClick={() => setNotificationsOpen(false)} className="block border-t border-slate-100 bg-slate-50 px-4 py-3 text-center text-xs font-semibold text-brand-700 hover:bg-brand-50">Open submission review queue ({pendingCount} awaiting)</Link>}
             </div>
           </>}
         </div>
@@ -89,9 +91,9 @@ export default function Header({ onMenuClick, darkMode, onToggleDarkMode }: Head
               <div className="absolute right-0 top-12 z-20 w-[min(19rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                 <div className="border-b border-slate-100 px-4 py-3.5">
                   <p className="text-xs font-bold text-slate-800">Demo user</p>
-                  <p className="mt-1 truncate text-[11px] text-slate-500">Switch roles to preview portal permissions</p>
+                  <p className="mt-1 truncate text-[11px] text-slate-500">Switch demo users to preview portal permissions</p>
                 </div>
-                <div className="p-1.5">
+                <div className="max-h-[min(28rem,calc(100vh-16rem))] overflow-y-auto p-1.5">
                   {users.map((user) => (
                     <button
                       key={user.id}
